@@ -1,0 +1,25 @@
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Java
+target/
+.mvn/timing.properties
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Ambiente local
+.env
+*.log
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Dados e resultados gerados
+data/generated/
+benchmarks/results/
