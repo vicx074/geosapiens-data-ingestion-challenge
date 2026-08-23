@@ -84,6 +84,8 @@ RECEIVED -> QUEUED -> PROCESSING -> COMPLETED
                               |-> FAILED
 ```
 
+Falhas antes do processamento também podem levar `RECEIVED` ou `QUEUED` a `FAILED`. Repetir o início de um job que já está em `PROCESSING` é idempotente para suportar redelivery sem apagar o instante original de início.
+
 Somente o caso de uso responsável poderá realizar transições. Estados terminais não retornarão a `PROCESSING` por causa de redelivery. As regras exatas e a concorrência entre atualizações serão cobertas por testes.
 
 ## Fronteiras transacionais

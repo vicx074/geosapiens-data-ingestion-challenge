@@ -11,6 +11,8 @@ Upload, publicação, processamento, redelivery e falhas podem atualizar o mesmo
 
 Modelar estados e transições no domínio. O fluxo nominal será `RECEIVED`, `QUEUED`, `PROCESSING` e um dos estados terminais `COMPLETED`, `COMPLETED_WITH_ERRORS` ou `FAILED`.
 
+Qualquer estado não terminal poderá seguir para `FAILED`, pois publicação, armazenamento temporário e processamento podem falhar em momentos diferentes. Repetir o início de um job em `PROCESSING` será idempotente para permitir redelivery sem alterar o instante original de início.
+
 Estados terminais serão imutáveis para redelivery. Contadores serão persistidos por lote, junto com os dados correspondentes. Concorrência e transições inválidas serão testadas.
 
 ## Alternativas rejeitadas
