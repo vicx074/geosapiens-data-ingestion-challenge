@@ -22,6 +22,20 @@ A solução adota um monólito modular com duas funções de execução do backe
 
 O [system design](docs/decisions/system-design-geosapiens.png) é a referência visual da topologia adotada. As decisões e alternativas estão registradas em [ARCHITECTURE.md](ARCHITECTURE.md) e em [docs/decisions](docs/decisions). A rastreabilidade do enunciado está em [docs/requirements.md](docs/requirements.md).
 
-## Estado atual
+## Backend
 
-Ainda não existe aplicação executável neste marco. Essa restrição é intencional: o esqueleto técnico será introduzido no próximo commit, separado das decisões que o justificam.
+O backend utiliza Java 21 e Spring Boot 3.5.16. Com uma JDK 21 disponível, os testes podem ser executados sem instalar uma versão global do Maven:
+
+```bash
+cd backend
+./mvnw test
+```
+
+No Windows:
+
+```powershell
+cd backend
+.\mvnw.cmd test
+```
+
+A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.

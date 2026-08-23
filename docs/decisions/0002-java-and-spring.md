@@ -9,9 +9,9 @@ Java e Spring Boot são obrigatórios. A máquina do avaliador não deve precisa
 
 ## Decisão
 
-Usar Eclipse Temurin Java 21, uma versão LTS consolidada, e uma versão estável e fixada do Spring Boot compatível com ela. O Maven Wrapper permitirá comandos reproduzíveis fora do container quando desejado.
+Usar Eclipse Temurin Java 21, uma versão LTS consolidada, e Spring Boot 3.5.16. Essa linha do Spring Boot continua mantida, é compatível com Java 21 e evita adotar Jakarta EE 11, Spring Framework 7 e Jackson 3 sem uma necessidade do desafio. O Maven Wrapper permitirá comandos reproduzíveis fora do container quando desejado.
 
-A versão exata do Spring Boot será registrada no commit de bootstrap, após validação na documentação oficial. Imagens e dependências não usarão a tag `latest`.
+Imagens e dependências não usarão a tag `latest`.
 
 ## Alternativas rejeitadas
 
