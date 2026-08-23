@@ -39,3 +39,19 @@ cd backend
 ```
 
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
+
+## Dataset
+
+O contrato das colunas está em [docs/data-contract.md](docs/data-contract.md). O gerador usa somente a biblioteca padrão do Python, escreve uma linha por vez e produz por padrão 1 milhão de registros determinísticos:
+
+```bash
+python tools/generate_dataset.py
+```
+
+É possível criar um arquivo menor para desenvolvimento:
+
+```bash
+python tools/generate_dataset.py --rows 10000 --output data/generated/transactions-10000.csv
+```
+
+O comando informa quantidade, semente e SHA-256. A execução do gerador também será disponibilizada por container para preservar o requisito plug-and-play da entrega final.
