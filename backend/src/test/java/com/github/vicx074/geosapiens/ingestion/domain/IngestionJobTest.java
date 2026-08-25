@@ -208,6 +208,44 @@ class IngestionJobTest {
     assertThat(IngestionStatus.FAILED.isTerminal()).isTrue();
   }
 
+  @Test
+  void shouldRestoreConsistentPersistedState() {
+    IngestionJob restored = IngestionJob.restore(
+        JOB_ID,
+        "transactions.csv",
+        IngestionStatus.PROCESSING,
+        900,
+        100,
+        RECEIVED_AT,
+        QUEUED_AT,
+        STARTED_AT,
+        null,
+        BATCH_AT,
+        null);
+
+    assertThat(restored.getStatus()).isEqualTo(IngestionStatus.PROCESSING);
+    assertThat(restored.getAcceptedRows()).isEqualTo(900);
+    assertThat(restored.getRejectedRows()).isEqualTo(100);
+    assertThat(restored.getUpdatedAt()).isEqualTo(BATCH_AT);
+  }
+
+  @Test
+  void shouldRejectInconsistentPersistedState() {
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> IngestionJob.restore(
+            JOB_ID,
+            "transactions.csv",
+            IngestionStatus.COMPLETED,
+            900,
+            100,
+            RECEIVED_AT,
+            QUEUED_AT,
+            STARTED_AT,
+            FINISHED_AT,
+            FINISHED_AT,
+            null));
+  }
+
   private static IngestionJob newJob() {
     return IngestionJob.receive(JOB_ID, "transactions.csv", RECEIVED_AT);
   }

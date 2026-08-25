@@ -35,6 +35,56 @@ public final class IngestionJob {
     return new IngestionJob(id, originalFilename, receivedAt);
   }
 
+  public static IngestionJob restore(
+      UUID id,
+      String originalFilename,
+      IngestionStatus status,
+      long acceptedRows,
+      long rejectedRows,
+      Instant createdAt,
+      Instant queuedAt,
+      Instant startedAt,
+      Instant finishedAt,
+      Instant updatedAt,
+      String failureReason) {
+    Objects.requireNonNull(status, "O estado persistido é obrigatório.");
+    Objects.requireNonNull(updatedAt, "A data da última atualização é obrigatória.");
+    if (acceptedRows < 0 || rejectedRows < 0) {
+      throw new IllegalArgumentException("Os contadores persistidos não podem ser negativos.");
+    }
+
+    IngestionJob job = receive(id, originalFilename, createdAt);
+    if (queuedAt != null) {
+      job.markQueued(queuedAt);
+    }
+    if (startedAt != null) {
+      job.startProcessing(startedAt);
+    }
+
+    long processedRows = Math.addExact(acceptedRows, rejectedRows);
+    if (processedRows > 0) {
+      Instant batchAt = status.isTerminal() ? finishedAt : updatedAt;
+      job.recordBatch(acceptedRows, rejectedRows, batchAt);
+    }
+
+    if (status == IngestionStatus.COMPLETED || status == IngestionStatus.COMPLETED_WITH_ERRORS) {
+      job.complete(finishedAt);
+    } else if (status == IngestionStatus.FAILED) {
+      job.fail(failureReason, finishedAt);
+    }
+
+    if (job.status != status
+        || job.acceptedRows != acceptedRows
+        || job.rejectedRows != rejectedRows
+        || !job.updatedAt.equals(updatedAt)) {
+      throw new IllegalArgumentException("O estado persistido do job é inconsistente.");
+    }
+    if (status != IngestionStatus.FAILED && failureReason != null) {
+      throw new IllegalArgumentException("Somente jobs com falha podem possuir motivo de falha.");
+    }
+    return job;
+  }
+
   public void markQueued(Instant occurredAt) {
     requireStatus(IngestionStatus.RECEIVED, IngestionStatus.QUEUED);
     queuedAt = requireInstant(occurredAt);
