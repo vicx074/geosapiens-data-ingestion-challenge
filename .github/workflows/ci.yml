@@ -53,12 +53,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Gerar lockfile reproduzível
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Instalar dependências
+      - name: Instalar dependências reproduzíveis
         run: npm ci
 
       - name: Verificar tipos
@@ -69,13 +67,6 @@ jobs:
 
       - name: Gerar build de produção
         run: npm run build
-
-      - name: Publicar lockfile para inclusão no repositório
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-package-lock
-          path: frontend/package-lock.json
-          if-no-files-found: error
 
   dataset:
     name: Dataset e benchmark helpers
@@ -102,45 +93,6 @@ jobs:
           python tools/generate_dataset.py
           --rows 10000
           --output "${{ runner.temp }}/transactions-10000.csv"
-
-  lockfile:
-    name: Versionar lockfile uma vez
-    if: github.event_name == 'pull_request' && github.head_ref == 'perf/benchmark-million-rows'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Baixar o branch do PR
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Configurar o Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          package-manager-cache: false
-
-      - name: Gerar e versionar package-lock.json se necessário
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -f package-lock.json ]]; then
-            echo "package-lock.json já está versionado."
-            exit 0
-          fi
-
-          npm install --package-lock-only --ignore-scripts
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: versiona lockfile do frontend"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
 
   compose:
     name: Docker Compose
@@ -208,7 +160,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.head_ref == 'perf/benchmark-million-rows'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    needs: [compose, lockfile]
+    needs: [compose]
     env:
       COMPOSE_FILE: compose.yaml:benchmarks/compose.reference.yaml
 
