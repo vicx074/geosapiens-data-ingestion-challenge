@@ -2,6 +2,7 @@
 
 - Status: aceito
 - Data: 2026-08-26
+- Complementado por: [ADR 0016](0016-bounded-worker-redelivery.md)
 
 ## Contexto
 
@@ -15,7 +16,7 @@ O cabeçalho precisa ser exatamente `transaction_id,occurred_at,amount,category`
 
 A concorrência do listener e o `prefetch` são valores explícitos de `app.worker`. Os valores iniciais são `concurrency=2` e `prefetch=1`: no máximo dois arquivos são processados simultaneamente por instância e cada consumer reserva apenas um job do broker. Esses números são hipóteses e serão recalibrados pelo benchmark, não apresentados como ótimos universais.
 
-O listener utiliza ACK manual. Sucesso ou job já terminal confirma a mensagem. Uma falha de infraestrutura solicita uma redelivery; se a mensagem já tiver sido redelivered e falhar novamente, o job é marcado como `FAILED` e a mensagem é rejeitada para uma DLQ durável. Mensagens com identificador inválido ou sem job correspondente também não entram em retry infinito.
+O listener utiliza ACK manual. Sucesso ou job já terminal confirma a mensagem. Uma falha de infraestrutura solicita uma redelivery; se a mensagem já tiver sido redelivered e falhar novamente, o job é marcado como `FAILED` e a mensagem é rejeitada para uma DLQ durável. Mensagens com identificador inválido ou sem job correspondente também não entram em retry infinito. O ADR 0016 detalha o comportamento quando até a persistência de `FAILED` fica indisponível depois que o orçamento de redelivery já foi consumido.
 
 O job é marcado como `PROCESSING` antes da leitura. Neste marco, os contadores são persistidos somente depois que o arquivo inteiro termina de ser percorrido. Isso evita somar progresso duas vezes caso uma falha ocorra antes do ACK, enquanto a persistência idempotente por `source_row` ainda não existe.
 
@@ -35,4 +36,4 @@ A remoção do arquivo temporário também permanece adiada até esse limite tra
 
 ## Consequências
 
-O fluxo assíncrono já chega ao Worker com backpressure explícito e valida o contrato do dataset em memória limitada. O estado do job também converge para terminal em sucesso, erro estrutural ou falhas repetidas. A durabilidade dos registros financeiros continua deliberadamente reservada ao próximo marco.
+O fluxo assíncrono já chega ao Worker com backpressure explícito e valida o contrato do dataset em memória limitada. O estado do job também converge para terminal em sucesso, erro estrutural ou falhas repetidas quando a persistência está disponível. A durabilidade dos registros financeiros continua deliberadamente reservada ao próximo marco.
