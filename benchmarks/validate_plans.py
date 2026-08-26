@@ -35,7 +35,7 @@ def main() -> None:
         "transactionCurrent": "transaction-current-post-vacuum.txt",
         "transactionWithoutCursorIndex": "transaction-without-cursor-index-post-vacuum.txt",
         "analyticsCurrent": "analytics-current-post-vacuum.txt",
-        "analyticsWithoutCoveringIndex": "analytics-without-covering-index-post-vacuum.txt",
+        "analyticsWithCoveringCandidate": "analytics-with-covering-candidate-post-vacuum.txt",
     }
 
     benchmark.write_text(result_directory / files["transactionCurrent"], benchmark.explain(transaction_query))
@@ -45,8 +45,8 @@ def main() -> None:
     )
     benchmark.write_text(result_directory / files["analyticsCurrent"], benchmark.explain(analytics_query))
     benchmark.write_text(
-        result_directory / files["analyticsWithoutCoveringIndex"],
-        benchmark.explain_without_index("idx_transactions_analytics_by_import", analytics_query),
+        result_directory / files["analyticsWithCoveringCandidate"],
+        benchmark.explain_with_analytics_covering_candidate(analytics_query),
     )
 
     report["database"]["planValidationMaintenance"] = "VACUUM (ANALYZE) transactions"
@@ -57,9 +57,9 @@ def main() -> None:
     with summary_path.open("a", encoding="utf-8") as summary:
         summary.write("\n\n## Validação pós-VACUUM/ANALYZE\n\n")
         summary.write(
-            "Os quatro planos também foram coletados após `VACUUM (ANALYZE) transactions`, "
-            "fora do tempo de ingestão, para atualizar estatísticas e permitir avaliar o covering index "
-            "em condições compatíveis com index-only scan.\n"
+            "Os planos também foram coletados após `VACUUM (ANALYZE) transactions`, fora do tempo de ingestão. "
+            "O covering index de analytics é criado apenas dentro de uma transação de medição e revertido com "
+            "`ROLLBACK`, permitindo comparar o candidato sem mantê-lo na solução.\n"
         )
 
     print(json.dumps({"result": str(result_directory), "postVacuumPlans": files}, ensure_ascii=False))
