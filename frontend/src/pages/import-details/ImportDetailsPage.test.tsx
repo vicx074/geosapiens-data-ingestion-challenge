@@ -25,7 +25,26 @@ const processingStatus = {
   failureReason: null,
 } as const
 
+const analyticsSnapshot = {
+  transactionCount: 12300,
+  totalAmount: 845230.75,
+  byCategory: [
+    { category: 'Alimentação', transactionCount: 7300, totalAmount: 512400.5 },
+    { category: 'Transporte', transactionCount: 5000, totalAmount: 332830.25 },
+  ],
+  byMonth: [
+    { month: '2026-07', transactionCount: 5900, totalAmount: 403120.25 },
+    { month: '2026-08', transactionCount: 6400, totalAmount: 442110.5 },
+  ],
+}
+
 function renderDetails() {
+  server.use(
+    http.get(`http://localhost/api/imports/${processingStatus.jobId}/analytics`, () =>
+      HttpResponse.json(analyticsSnapshot),
+    ),
+  )
+
   return render(
     <SWRConfig
       value={{
@@ -45,7 +64,7 @@ function renderDetails() {
 }
 
 describe('ImportDetailsPage', () => {
-  it('mostra somente contadores duráveis durante o processamento', async () => {
+  it('mostra somente contadores duráveis durante o processamento e analytics do snapshot confirmado', async () => {
     server.use(
       http.get(`http://localhost/api/imports/${processingStatus.jobId}`, () =>
         HttpResponse.json(processingStatus),
@@ -60,6 +79,10 @@ describe('ImportDetailsPage', () => {
     expect(screen.getByText('150')).toBeVisible()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getByText(/total final ainda não é estimado/i)).toBeVisible()
+
+    expect(await screen.findByRole('heading', { level: 2, name: /dados confirmados/i })).toBeVisible()
+    expect(screen.getByText('R$ 845.230,75')).toBeVisible()
+    expect(screen.getByText('Snapshot parcial')).toBeVisible()
   })
 
   it('distingue falha de leitura do estado FAILED e permite reconsulta explícita', async () => {
@@ -84,5 +107,6 @@ describe('ImportDetailsPage', () => {
 
     expect(await screen.findByText('Concluído')).toBeVisible()
     expect(requests).toBe(2)
+    expect(await screen.findByText('Snapshot final')).toBeVisible()
   })
 })
