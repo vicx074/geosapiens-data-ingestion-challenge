@@ -31,7 +31,9 @@ describe('UploadPage', () => {
       http.post('http://localhost/api/imports', async ({ request }) => {
         const body = await request.formData()
         const uploaded = body.get('file')
-        uploadedName = uploaded instanceof File ? uploaded.name : null
+        if (uploaded && typeof uploaded === 'object' && 'name' in uploaded) {
+          uploadedName = String(uploaded.name)
+        }
 
         return HttpResponse.json(
           { jobId: 'job-123', status: 'QUEUED', statusUrl: '/imports/job-123' },
@@ -74,10 +76,12 @@ describe('UploadPage', () => {
 
   it('rejeita metadado incompatível sem enviar requisição', async () => {
     let requests = 0
-    server.use(http.post('http://localhost/api/imports', () => {
-      requests += 1
-      return HttpResponse.json({})
-    }))
+    server.use(
+      http.post('http://localhost/api/imports', () => {
+        requests += 1
+        return HttpResponse.json({})
+      }),
+    )
 
     const user = userEvent.setup()
     renderUpload()

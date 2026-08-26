@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { describe, expect, it } from 'vitest'
 
+import { swrFetcher } from '../../shared/api/http-client'
 import { server } from '../../test/server'
 import { ImportDetailsPage } from './ImportDetailsPage'
 
@@ -26,7 +27,14 @@ const processingStatus = {
 
 function renderDetails() {
   return render(
-    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <SWRConfig
+      value={{
+        provider: () => new Map(),
+        fetcher: swrFetcher,
+        dedupingInterval: 0,
+        shouldRetryOnError: false,
+      }}
+    >
       <MemoryRouter initialEntries={[`/imports/${processingStatus.jobId}`]}>
         <Routes>
           <Route path="/imports/:id" element={<ImportDetailsPage />} />
