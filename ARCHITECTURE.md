@@ -12,7 +12,7 @@ O [system design original](docs/decisions/system-design-geosapiens.png) é a ref
 flowchart LR
     User([Usuário]) --> React[React\nUpload, status e dashboard]
     React -->|POST /imports| API[Spring Boot API\nUpload em streaming]
-    React -.->|Polling| API
+    React -.->|GET /imports/:id\nPolling| API
     API -->|CSV| Storage[(Volume temporário)]
     API -.->|Job| Rabbit{{RabbitMQ\nPrefetch limitado, redelivery e DLQ}}
     Rabbit -.-> Worker[Spring Boot Worker\nStreaming, validação e lotes]
@@ -102,13 +102,17 @@ Um commit único para todo o arquivo reteria uma transação extensa. Um commit 
 
 ## Consultas e índices
 
+A consulta de status usa a chave primária de `ingestion_jobs` e retorna apenas estado e contadores persistidos. O payload de polling tem tamanho constante; erros detalhados não são embutidos nele.
+
 A listagem usará cursor estável em vez de offsets profundos. O índice inicial correspondente será `(import_id, id)`, pois a consulta lista registros de uma importação ordenados pelo identificador.
 
 A restrição `(import_id, source_row)` atende à idempotência. Índices de agregação só serão definidos depois que o schema e as consultas finais existirem. Cada índice deverá ser justificado pela consulta e validado com `EXPLAIN (ANALYZE, BUFFERS)` em dados representativos.
 
 ## Frontend
 
-Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem conexões persistentes. O intervalo será configurável e medido.
+Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem conexões persistentes. `GET /imports/{id}` lê o estado durável do job e não mantém progresso paralelo em memória. A resposta inclui `processedRows`, `acceptedRows` e `rejectedRows`; percentual só será exibido se o total de linhas puder ser obtido de forma durável sem uma passagem adicional injustificada pelo arquivo.
+
+O status não carrega detalhes de todos os erros. Erros serão consultados por endpoint paginado próprio para que o polling permaneça limitado em tamanho.
 
 Paginação server-side limita transferência e trabalho do banco. Virtualização limita os elementos montados no DOM. As duas técnicas resolvem problemas diferentes e podem ser usadas juntas.
 
