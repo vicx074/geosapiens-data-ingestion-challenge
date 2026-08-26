@@ -12,7 +12,6 @@ import io.github.vicx074.geosapiens.ingestion.domain.IngestionStatus;
 import io.github.vicx074.geosapiens.ingestion.infrastructure.storage.FileSystemTemporaryFileStorage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -108,6 +107,6 @@ class ReceiveIngestionUploadTest {
             new ByteArrayInputStream("data".getBytes())
         ))
         .withMessage("O arquivo enviado deve possuir extensão .csv.");
-    assertThat(Files.exists(temporaryDirectory)).isFalse();
+    assertThat(temporaryDirectory).isEmptyDirectory();
   }
 }
