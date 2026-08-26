@@ -1,5 +1,6 @@
 package io.github.vicx074.geosapiens.ingestion.infrastructure.web;
 
+import io.github.vicx074.geosapiens.ingestion.application.IngestionJobNotFoundException;
 import io.github.vicx074.geosapiens.ingestion.application.InvalidIngestionUploadException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -16,6 +17,16 @@ public class IngestionExceptionHandler {
         exception.getMessage()
     );
     problem.setTitle("Upload inválido");
+    return problem;
+  }
+
+  @ExceptionHandler(IngestionJobNotFoundException.class)
+  ProblemDetail handleJobNotFound(IngestionJobNotFoundException exception) {
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+        HttpStatus.NOT_FOUND,
+        exception.getMessage()
+    );
+    problem.setTitle("Importação não encontrada");
     return problem;
   }
 }

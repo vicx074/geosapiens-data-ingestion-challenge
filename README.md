@@ -44,6 +44,18 @@ As linhas classificadas são acumuladas em lotes limitados e persistidas via JDB
 
 Depois que o job alcança estado terminal durável, o Worker remove o CSV temporário. Mensagens redelivered de jobs já terminais e a própria limpeza são tratadas de forma idempotente.
 
+### Acompanhamento da importação
+
+O upload responde `202 Accepted` com `Location: /imports/{id}`. O status pode ser consultado por polling:
+
+```http
+GET /imports/{id}
+```
+
+A resposta é limitada em tamanho e usa o estado persistido no PostgreSQL como fonte de verdade. Ela informa estado, linhas processadas/aceitas/rejeitadas, timestamps e motivo de falha quando aplicável. Erros detalhados não são embutidos no polling; serão expostos por endpoint paginado próprio.
+
+Não é retornado percentual estimado enquanto o total de linhas não for conhecido de forma durável. `processedRows` representa trabalho efetivamente confirmado em batches.
+
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 
 ## Dataset
