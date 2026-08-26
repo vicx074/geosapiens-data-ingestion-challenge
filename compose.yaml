@@ -81,9 +81,8 @@ services:
       - temporary-uploads:/data/uploads
 
   backend-worker:
-    build:
-      context: ./backend
     image: geosapiens-backend:local
+    pull_policy: never
     init: true
     environment:
       <<: *backend-environment
