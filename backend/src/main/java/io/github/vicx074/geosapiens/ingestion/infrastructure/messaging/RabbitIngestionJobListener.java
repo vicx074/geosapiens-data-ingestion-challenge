@@ -4,6 +4,9 @@ import com.rabbitmq.client.Channel;
 import io.github.vicx074.geosapiens.ingestion.application.FailIngestionJob;
 import io.github.vicx074.geosapiens.ingestion.application.IngestionJobNotFoundException;
 import io.github.vicx074.geosapiens.ingestion.application.ProcessIngestionJob;
+import io.github.vicx074.geosapiens.ingestion.domain.IngestionJob;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.observability.IngestionWorkerMetrics;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.observability.IngestionWorkerMetrics.Outcome;
 import java.io.IOException;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -19,10 +22,15 @@ public final class RabbitIngestionJobListener {
 
   private final ProcessIngestionJob processJob;
   private final FailIngestionJob failJob;
+  private final IngestionWorkerMetrics metrics;
 
-  public RabbitIngestionJobListener(ProcessIngestionJob processJob, FailIngestionJob failJob) {
+  public RabbitIngestionJobListener(
+      ProcessIngestionJob processJob,
+      FailIngestionJob failJob,
+      IngestionWorkerMetrics metrics) {
     this.processJob = processJob;
     this.failJob = failJob;
+    this.metrics = metrics;
   }
 
   @RabbitListener(
@@ -30,24 +38,35 @@ public final class RabbitIngestionJobListener {
       containerFactory = "ingestionWorkerContainerFactory",
       autoStartup = "${app.worker.enabled:false}")
   public void consume(String payload, Message message, Channel channel) throws IOException {
+    long startedNanos = System.nanoTime();
     long deliveryTag = message.getMessageProperties().getDeliveryTag();
     UUID jobId;
     try {
       jobId = UUID.fromString(payload.strip());
     } catch (RuntimeException exception) {
-      LOGGER.warn("Mensagem de ingestão inválida recebida: identificador de job ausente ou malformado.");
       channel.basicReject(deliveryTag, false);
+      record(Outcome.DEAD_LETTER, startedNanos);
+      LOGGER.atWarn()
+          .addKeyValue("action", "dead_letter")
+          .log("Mensagem de ingestão inválida recebida: identificador de job ausente ou malformado.");
       return;
     }
 
     try {
-      processJob.execute(jobId);
+      IngestionJob job = processJob.execute(jobId);
       channel.basicAck(deliveryTag, false);
+      long durationNanos = record(Outcome.ACK, startedNanos);
+      logCompleted(job, durationNanos);
     } catch (IngestionJobNotFoundException exception) {
-      LOGGER.warn("Job {} não existe; mensagem será enviada para a DLQ.", jobId);
       channel.basicReject(deliveryTag, false);
+      record(Outcome.DEAD_LETTER, startedNanos);
+      LOGGER.atWarn()
+          .addKeyValue("jobId", jobId)
+          .addKeyValue("action", "dead_letter")
+          .setCause(exception)
+          .log("Job não encontrado; mensagem enviada para a DLQ.");
     } catch (RuntimeException exception) {
-      handleProcessingFailure(jobId, message, channel, deliveryTag, exception);
+      handleProcessingFailure(jobId, message, channel, deliveryTag, startedNanos, exception);
     }
   }
 
@@ -56,11 +75,18 @@ public final class RabbitIngestionJobListener {
       Message message,
       Channel channel,
       long deliveryTag,
+      long startedNanos,
       RuntimeException exception) throws IOException {
     boolean redelivered = Boolean.TRUE.equals(message.getMessageProperties().getRedelivered());
     if (!redelivered) {
-      LOGGER.warn("Falha ao processar job {}; uma nova entrega será solicitada.", jobId, exception);
       channel.basicNack(deliveryTag, false, true);
+      long durationNanos = record(Outcome.REDELIVERY, startedNanos);
+      LOGGER.atWarn()
+          .addKeyValue("jobId", jobId)
+          .addKeyValue("action", "redelivery")
+          .addKeyValue("durationMs", nanosToMillis(durationNanos))
+          .setCause(exception)
+          .log("Falha ao processar job; uma nova entrega foi solicitada.");
       return;
     }
 
@@ -71,18 +97,47 @@ public final class RabbitIngestionJobListener {
 
       // O orçamento de retry já foi consumido. Reenfileirar outra vez pode criar um loop quente
       // justamente quando o PostgreSQL está indisponível; a DLQ preserva a mensagem para reconciliação.
-      LOGGER.error(
-          "Não foi possível registrar a falha definitiva do job {}; mensagem será enviada para a DLQ "
-              + "para evitar redelivery sem limite. O estado do job pode exigir reconciliação.",
-          jobId,
-          exception);
       channel.basicReject(deliveryTag, false);
+      long durationNanos = record(Outcome.DEAD_LETTER, startedNanos);
+      LOGGER.atError()
+          .addKeyValue("jobId", jobId)
+          .addKeyValue("action", "dead_letter")
+          .addKeyValue("requiresReconciliation", true)
+          .addKeyValue("durationMs", nanosToMillis(durationNanos))
+          .setCause(exception)
+          .log("Não foi possível registrar a falha definitiva; mensagem enviada para a DLQ.");
       return;
     }
 
-    LOGGER.error("Job {} falhou novamente após redelivery; mensagem será enviada para a DLQ.",
-        jobId, exception);
     channel.basicReject(deliveryTag, false);
+    long durationNanos = record(Outcome.DEAD_LETTER, startedNanos);
+    LOGGER.atError()
+        .addKeyValue("jobId", jobId)
+        .addKeyValue("action", "dead_letter")
+        .addKeyValue("durationMs", nanosToMillis(durationNanos))
+        .setCause(exception)
+        .log("Job falhou novamente após redelivery; mensagem enviada para a DLQ.");
+  }
+
+  private long record(Outcome outcome, long startedNanos) {
+    long durationNanos = Math.max(0, System.nanoTime() - startedNanos);
+    metrics.record(outcome, durationNanos);
+    return durationNanos;
+  }
+
+  private static void logCompleted(IngestionJob job, long durationNanos) {
+    LOGGER.atInfo()
+        .addKeyValue("jobId", job.getId())
+        .addKeyValue("status", job.getStatus().name())
+        .addKeyValue("processedRows", job.getProcessedRows())
+        .addKeyValue("acceptedRows", job.getAcceptedRows())
+        .addKeyValue("rejectedRows", job.getRejectedRows())
+        .addKeyValue("durationMs", nanosToMillis(durationNanos))
+        .log("Processamento de ingestão concluído.");
+  }
+
+  private static long nanosToMillis(long durationNanos) {
+    return durationNanos / 1_000_000;
   }
 
   private static String failureReason(RuntimeException exception) {
