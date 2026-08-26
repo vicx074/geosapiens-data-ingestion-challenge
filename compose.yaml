@@ -1,0 +1,128 @@
+name: geosapiens-data-ingestion
+
+x-backend-environment: &backend-environment
+  DB_URL: jdbc:postgresql://postgres:5432/geosapiens
+  DB_USERNAME: geosapiens
+  DB_PASSWORD: geosapiens_local
+  RABBITMQ_ADDRESSES: rabbitmq:5672
+  RABBITMQ_USERNAME: geosapiens
+  RABBITMQ_PASSWORD: geosapiens_local
+  RABBITMQ_INGESTION_EXCHANGE: ingestion.jobs
+  RABBITMQ_INGESTION_QUEUE: ingestion.jobs.process
+  RABBITMQ_INGESTION_ROUTING_KEY: ingestion.process
+  RABBITMQ_INGESTION_DLX: ingestion.jobs.dlx
+  RABBITMQ_INGESTION_DLQ: ingestion.jobs.dead
+  RABBITMQ_INGESTION_DEAD_LETTER_ROUTING_KEY: ingestion.dead
+  MAX_UPLOAD_SIZE: 1024MB
+  MAX_UPLOAD_REQUEST_SIZE: 1025MB
+  TEMPORARY_STORAGE_DIRECTORY: /data/uploads
+  CSV_MAX_RECORD_CHARACTERS: 4096
+  WORKER_CONCURRENCY: 2
+  WORKER_PREFETCH: 1
+  WORKER_BATCH_SIZE: 1000
+  OUTBOX_POLL_INTERVAL: 1s
+  OUTBOX_BATCH_SIZE: 10
+  OUTBOX_CLAIM_DURATION: 51s
+  OUTBOX_CONFIRM_TIMEOUT: 5s
+  OUTBOX_MAX_ATTEMPTS: 3
+  OUTBOX_INITIAL_RETRY_DELAY: 1s
+  OUTBOX_MAX_RETRY_DELAY: 10s
+
+services:
+  postgres:
+    image: postgres:17.11-alpine3.24
+    environment:
+      POSTGRES_DB: geosapiens
+      POSTGRES_USER: geosapiens
+      POSTGRES_PASSWORD: geosapiens_local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geosapiens -d geosapiens"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:4.3.5-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: geosapiens
+      RABBITMQ_DEFAULT_PASS: geosapiens_local
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  backend-api:
+    build:
+      context: ./backend
+    image: geosapiens-backend:local
+    init: true
+    environment:
+      <<: *backend-environment
+      WORKER_ENABLED: "false"
+      OUTBOX_PUBLISHER_ENABLED: "true"
+      SPRING_FLYWAY_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    volumes:
+      - temporary-uploads:/data/uploads
+
+  backend-worker:
+    build:
+      context: ./backend
+    image: geosapiens-backend:local
+    init: true
+    environment:
+      <<: *backend-environment
+      WORKER_ENABLED: "true"
+      OUTBOX_PUBLISHER_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_MAIN_WEB_APPLICATION_TYPE: none
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    volumes:
+      - temporary-uploads:/data/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+    image: geosapiens-frontend:local
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+  dataset-generator:
+    image: python:3.13-alpine
+    profiles: ["tools"]
+    working_dir: /workspace
+    command:
+      - python
+      - tools/generate_dataset.py
+      - --rows
+      - "1000000"
+      - --output
+      - /data/generated/transactions-1000000.csv
+    volumes:
+      - ./tools:/workspace/tools:ro
+      - ./data/generated:/data/generated
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  temporary-uploads:
