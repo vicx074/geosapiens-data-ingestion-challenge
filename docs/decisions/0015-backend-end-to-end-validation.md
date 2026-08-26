@@ -11,11 +11,11 @@ O último marco funcional do backend precisa verificar a composição real sem s
 
 ## Decisão
 
-Será mantido um teste E2E de backend com PostgreSQL e RabbitMQ reais via Testcontainers. O teste inicia a aplicação Spring com Worker e publicador do Outbox habilitados e percorre o fluxo:
+Será mantido um teste E2E de backend com PostgreSQL e RabbitMQ reais via Testcontainers. O teste inicia a aplicação Spring com Worker e scheduler do Outbox habilitados e percorre o fluxo:
 
 1. envia um CSV por `POST /imports` usando multipart HTTP;
 2. verifica `202 Accepted` e a URL de acompanhamento;
-3. aguarda o Outbox publicar o job no RabbitMQ;
+3. aguarda o scheduler real do Outbox publicar o job no RabbitMQ;
 4. permite que o listener entregue o job ao Worker real;
 5. deixa o Worker abrir o arquivo temporário, fazer parsing streaming e persistir lotes;
 6. aguarda um estado terminal durável;
@@ -24,6 +24,12 @@ Será mantido um teste E2E de backend com PostgreSQL e RabbitMQ reais via Testco
 9. confirma que a entrada do Outbox terminou como `PUBLISHED`.
 
 O dataset do teste é deliberadamente pequeno e determinístico, contendo linhas válidas e inválidas. O objetivo do E2E é validar integração e consistência, não medir throughput ou pico de memória.
+
+### Acionamento do Outbox no teste
+
+O E2E não injeta nem chama `PublishPendingIngestionJobs` diretamente. O scheduler de produção é habilitado por configuração e recebe um intervalo curto somente no contexto do teste. Dessa forma, o cenário não cria uma entrada alternativa para a publicação e prova o mesmo encadeamento usado pela aplicação.
+
+Esperar o resultado assíncrono com timeout explícito é preferível a controlar manualmente o caso de uso: o teste verifica comportamento observável e reduz o acoplamento à forma interna de instanciação dos serviços de aplicação.
 
 ## Por que não usar o dataset de 1 milhão no CI
 
