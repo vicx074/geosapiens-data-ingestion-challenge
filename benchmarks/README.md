@@ -2,6 +2,8 @@
 
 Este diretório contém o harness usado para validar a propriedade central do desafio: processar um CSV com **1.000.000 ou mais de linhas** sem transformar o tamanho total do arquivo em consumo equivalente de memória da aplicação.
 
+Os resultados de referência já coletados estão em [`docs/performance.md`](../docs/performance.md). O diretório `benchmarks/results/` continua ignorado pelo Git para não transformar uma execução local em número universal.
+
 ## O que é medido
 
 `run_benchmark.py` executa a solução real via Docker Compose e registra:
@@ -19,7 +21,7 @@ Este diretório contém o harness usado para validar a propriedade central do de
 - tamanho dos índices persistidos relevantes;
 - `EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS)` das consultas de paginação e analytics.
 
-Para a paginação, o harness remove temporariamente `idx_transactions_import_cursor` dentro de uma transação e executa `ROLLBACK` após o plano. Para analytics, a solução final não mantém um covering index: o harness recria o candidato rejeitado apenas dentro da transação de medição e o remove automaticamente pelo `ROLLBACK`. Assim é possível reavaliar a hipótese sem cobrar seu custo no runtime normal.
+Para a paginação, o harness remove temporariamente `idx_transactions_import_cursor` dentro de uma transação e executa `ROLLBACK` após o plano. Para analytics, a solução final não mantém o covering index rejeitado pelo benchmark: o harness recria um candidato equivalente somente dentro da transação de medição e o remove automaticamente pelo `ROLLBACK`.
 
 `validate_plans.py` executa uma segunda coleta após `VACUUM (ANALYZE) transactions`. Essa manutenção fica **fora do tempo de ingestão** e atualiza estatísticas/visibility map antes de comparar novamente os planos.
 
@@ -60,7 +62,7 @@ docker compose down --volumes --remove-orphans
 
 ## Perfil de referência
 
-`compose.reference.yaml` aplica limites explícitos apenas para tornar uma execução de comparação mais reproduzível:
+`compose.reference.yaml` aplica limites explícitos apenas para tornar a comparação mais reproduzível:
 
 | Serviço | CPU | Memória |
 |---|---:|---:|
@@ -70,13 +72,13 @@ docker compose down --volumes --remove-orphans
 | Worker | 1,0 | 512 MiB |
 | Frontend | 0,25 | 128 MiB |
 
-Esses valores **não são requisitos de produção nem recomendações de capacity planning**. São apenas parâmetros de um cenário de medição versionado.
+Esses valores **não são requisitos de produção nem recomendações de capacity planning**. São parâmetros de um cenário versionado.
 
-## Execução de referência no GitHub Actions
+## Referência coletada no GitHub Actions
 
-O PR que introduziu o harness executa temporariamente uma referência com 1M de linhas em runner hospedado pelo GitHub. Ela prova que o harness, o Compose e as medições funcionam juntos e ajuda a encontrar regressões óbvias.
+Durante o PR que introduziu o harness foi executada uma referência com 1M de linhas em runner hospedado pelo GitHub. O job pesado existiu somente para validar o harness e produzir a evidência inicial; ele foi removido do CI normal depois da coleta para não transformar cada PR em um benchmark caro e variável.
 
-Um runner compartilhado não é tratado como benchmark oficial porque a carga do host físico não é controlada pelo projeto. Números provenientes dessa execução devem ser descritos como **referência**, nunca como capacidade garantida do sistema.
+Um runner compartilhado não é tratado como benchmark de hardware controlado. Os números estão publicados em `docs/performance.md` sempre acompanhados do ambiente e das limitações da medição.
 
 ## Artefatos
 
@@ -88,4 +90,4 @@ Cada execução cria um diretório em `benchmarks/results/<timestamp>-<sha>/` co
 - plano atual de analytics e variante com o covering index candidato;
 - planos equivalentes após `VACUUM (ANALYZE)`.
 
-`benchmarks/results/` permanece no `.gitignore` para não versionar resultados locais como se fossem universais. O relatório final do projeto só deve publicar números acompanhados do ambiente em que foram medidos.
+Resultados locais não são commitados automaticamente. Se uma nova decisão arquitetural for baseada em benchmark, o documento correspondente deve registrar ambiente, workload e limite da conclusão.
