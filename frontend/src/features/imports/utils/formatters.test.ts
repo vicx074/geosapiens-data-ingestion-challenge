@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatFileSize, validateCsvFile } from './formatters'
+import { formatCurrency, formatFileSize, formatMonth, validateCsvFile } from './formatters'
 
 describe('formatters de importação', () => {
   it('aceita CSV não vazio sem depender do MIME informado pelo navegador', () => {
@@ -16,5 +16,11 @@ describe('formatters de importação', () => {
 
   it('formata tamanho sem precisão excessiva', () => {
     expect(formatFileSize(1536)).toBe('1,5 KB')
+  })
+
+  it('formata moeda e mês mantendo o contrato mensal em UTC', () => {
+    expect(formatCurrency(1250.5)).toMatch(/1\.250,50/)
+    expect(formatMonth('2026-07')).toMatch(/jul\. de 2026/i)
+    expect(formatMonth('valor-inválido')).toBe('valor-inválido')
   })
 })
