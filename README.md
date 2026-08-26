@@ -115,6 +115,47 @@ GET /actuator/metrics/ingestion.worker.deliveries
 
 As métricas são auxiliares e *best effort*: falha de telemetria não muda ACK, redelivery, DLQ nem estado do job. O PostgreSQL continua sendo a fonte de verdade. A decisão está no ADR 0018.
 
+## Frontend
+
+O frontend será uma SPA em **React + TypeScript + Vite**, implementada como o componente React já previsto no System Design.
+
+A estratégia inicial é intencionalmente pequena:
+
+```text
+React + TypeScript + Vite
+React Router       -> navegação
+SWR                -> estado remoto e polling
+TanStack Virtual   -> limite de elementos no DOM
+React local state  -> estado puramente visual
+```
+
+Não entram inicialmente Redux, Zustand, Axios, TanStack Query, TanStack Table ou chunking do CSV no navegador. Cada dependência só será adicionada diante de um problema concreto que justifique seu custo.
+
+### Upload
+
+O cliente envia o `File` como um único multipart para `POST /imports`. O React não lê milhões de linhas, não converte o CSV para JSON/Base64 e não divide o arquivo em chunks de aplicação. O streaming e o batch processing continuam no backend.
+
+O `POST` não terá retry automático cego: sem idempotency key no contrato de upload, repetir a requisição depois de uma resposta perdida poderia criar outro job.
+
+### Estado e polling
+
+SWR gerencia status, analytics, transações e erros. O polling de `GET /imports/{id}` permanece ativo enquanto a importação não é terminal e é interrompido ao receber `terminal=true`.
+
+Estado transitório de UI, como arquivo selecionado, aba e navegação local por cursor, fica no próprio React. Não existe store global apenas por convenção.
+
+### Renderização com grande volume
+
+As listas usam duas proteções distintas:
+
+- keyset pagination no backend limita consulta, transferência e quantidade de objetos mantidos no cliente;
+- TanStack Virtual limita as linhas efetivamente montadas no DOM.
+
+A interface não acumulará infinite scroll ilimitado em memória. Virtualizar somente o DOM não resolveria o crescimento de um array contendo todas as páginas já carregadas.
+
+O identificador do job vive na rota `/imports/:id`, permitindo refresh ou acesso direto sem perder o contexto.
+
+Os critérios de arquitetura estão no ADR 0019 e a direção de UI/UX, responsividade, estados e acessibilidade em [docs/frontend-design.md](docs/frontend-design.md).
+
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 
 ## Dataset
