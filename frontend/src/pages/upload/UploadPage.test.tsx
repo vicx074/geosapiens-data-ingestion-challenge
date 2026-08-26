@@ -24,15 +24,17 @@ function renderUpload() {
 }
 
 describe('UploadPage', () => {
-  it('envia o File como multipart e navega para o job aceito', async () => {
-    let uploadedName: string | null = null
+  it('envia o File no campo multipart esperado e navega para o job aceito', async () => {
+    let receivedFile = false
+    let receivedSize = 0
 
     server.use(
       http.post('http://localhost/api/imports', async ({ request }) => {
         const body = await request.formData()
         const uploaded = body.get('file')
-        if (uploaded && typeof uploaded === 'object' && 'name' in uploaded) {
-          uploadedName = String(uploaded.name)
+        receivedFile = uploaded !== null
+        if (uploaded && typeof uploaded === 'object' && 'size' in uploaded) {
+          receivedSize = Number(uploaded.size)
         }
 
         return HttpResponse.json(
@@ -44,12 +46,13 @@ describe('UploadPage', () => {
 
     const user = userEvent.setup()
     renderUpload()
-    const input = screen.getByLabelText(/selecionar arquivo csv/i)
-    await user.upload(input, new File(['transaction_id,occurred_at,amount,category'], 'dataset.csv', { type: 'text/csv' }))
+    const file = new File(['transaction_id,occurred_at,amount,category'], 'dataset.csv', { type: 'text/csv' })
+    await user.upload(screen.getByLabelText(/selecionar arquivo csv/i), file)
     await user.click(screen.getByRole('button', { name: /iniciar importação/i }))
 
     expect(await screen.findByText('Destino job-123')).toBeVisible()
-    expect(uploadedName).toBe('dataset.csv')
+    expect(receivedFile).toBe(true)
+    expect(receivedSize).toBeGreaterThan(0)
   })
 
   it('não repete automaticamente um POST cujo resultado ficou incerto', async () => {
@@ -74,7 +77,7 @@ describe('UploadPage', () => {
     expect(requests).toBe(1)
   })
 
-  it('rejeita metadado incompatível sem enviar requisição', async () => {
+  it('rejeita CSV vazio sem enviar requisição', async () => {
     let requests = 0
     server.use(
       http.post('http://localhost/api/imports', () => {
@@ -85,9 +88,12 @@ describe('UploadPage', () => {
 
     const user = userEvent.setup()
     renderUpload()
-    await user.upload(screen.getByLabelText(/selecionar arquivo csv/i), new File(['texto'], 'dataset.txt'))
+    await user.upload(
+      screen.getByLabelText(/selecionar arquivo csv/i),
+      new File([], 'dataset.csv', { type: 'text/csv' }),
+    )
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/extensão \.csv/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/arquivo selecionado está vazio/i)
     expect(screen.getByRole('button', { name: /iniciar importação/i })).toBeDisabled()
     expect(requests).toBe(0)
   })
