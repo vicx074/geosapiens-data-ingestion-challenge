@@ -11,12 +11,18 @@ RUN mvn --batch-mode --no-transfer-progress -DskipTests package \
 
 FROM eclipse-temurin:21-jre-alpine
 
-RUN addgroup -S geosapiens && adduser -S -G geosapiens geosapiens
+RUN apk add --no-cache su-exec \
+    && addgroup -g 10001 -S geosapiens \
+    && adduser -u 10001 -S -D -G geosapiens geosapiens \
+    && mkdir -p /data/uploads \
+    && chown geosapiens:geosapiens /data/uploads
 
 WORKDIR /app
 COPY --from=build --chown=geosapiens:geosapiens /tmp/app.jar ./app.jar
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
-USER geosapiens
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["java", "-jar", "/app/app.jar"]
