@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 
 import { AnalyticsDashboard } from '../../features/imports/components/analytics/AnalyticsDashboard'
+import { ImportRecordsPanel } from '../../features/imports/components/records/ImportRecordsPanel'
 import { StatusSummary } from '../../features/imports/components/StatusSummary'
 import { useImportStatus } from '../../features/imports/hooks/useImportStatus'
 import { HttpError } from '../../shared/api/http-client'
@@ -74,6 +75,13 @@ export function ImportDetailsPage() {
             </div>
           ) : null}
           <AnalyticsDashboard jobId={data.jobId} status={data.status} terminal={data.terminal} />
+          <ImportRecordsPanel
+            key={data.jobId}
+            jobId={data.jobId}
+            acceptedRows={data.acceptedRows}
+            rejectedRows={data.rejectedRows}
+            terminal={data.terminal}
+          />
         </>
       ) : null}
     </div>

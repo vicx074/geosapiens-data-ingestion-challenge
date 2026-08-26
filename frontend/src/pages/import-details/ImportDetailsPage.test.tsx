@@ -43,6 +43,9 @@ function renderDetails() {
     http.get(`http://localhost/api/imports/${processingStatus.jobId}/analytics`, () =>
       HttpResponse.json(analyticsSnapshot),
     ),
+    http.get(`http://localhost/api/imports/${processingStatus.jobId}/transactions`, () =>
+      HttpResponse.json({ items: [], nextCursor: null }),
+    ),
   )
 
   return render(
@@ -87,6 +90,7 @@ describe('ImportDetailsPage', () => {
     expect(await screen.findByRole('heading', { level: 2, name: /dados confirmados/i })).toBeVisible()
     expect(screen.getByText(/845\.230,75/)).toBeVisible()
     expect(screen.getByText('Snapshot parcial')).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 2, name: /inspeção paginada/i })).toBeVisible()
   })
 
   it('distingue falha de leitura do estado FAILED e permite reconsulta explícita', async () => {
