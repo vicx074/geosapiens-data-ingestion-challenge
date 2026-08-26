@@ -55,7 +55,7 @@ class RabbitJobQueuePublisherIntegrationTest {
     assertThat(new String(received.getBody(), StandardCharsets.UTF_8))
         .isEqualTo(JOB_ID.toString());
     assertThat(received.getMessageProperties().getMessageId()).isEqualTo(JOB_ID.toString());
-    assertThat(received.getMessageProperties().getDeliveryMode())
+    assertThat(received.getMessageProperties().getReceivedDeliveryMode())
         .isEqualTo(MessageDeliveryMode.PERSISTENT);
   }
 }
