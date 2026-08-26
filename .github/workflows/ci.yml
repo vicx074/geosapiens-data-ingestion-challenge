@@ -37,6 +37,46 @@ jobs:
       - name: Compilar e testar o backend
         run: ./mvnw --batch-mode --no-transfer-progress verify
 
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v6
+
+      - name: Configurar o Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Gerar lockfile reproduzível
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar tipos
+        run: npm run typecheck
+
+      - name: Testar o frontend
+        run: npm run test:run
+
+      - name: Gerar build de produção
+        run: npm run build
+
+      - name: Publicar lockfile para inclusão no repositório
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-package-lock
+          path: frontend/package-lock.json
+          if-no-files-found: error
+
   dataset:
     name: Dataset
     runs-on: ubuntu-24.04
