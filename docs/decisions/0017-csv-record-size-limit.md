@@ -35,6 +35,12 @@ O risco restante está na unidade que precisa ser materializada pelo parser de c
 
 O parser trabalha com `Reader` e Strings; o risco que queremos controlar é a quantidade de caracteres materializados por registro. O `InputStreamReader` continua usando buffers fixos e o arquivo permanece streaming. O limite não pretende substituir o limite de bytes do upload.
 
+## Falha estrutural depois de batches confirmados
+
+O processamento não é atômico no nível do arquivo inteiro. Se um erro estrutural for encontrado depois que batches anteriores já foram commitados, esses registros e seus contadores permanecem duráveis e o job termina como `FAILED`.
+
+Esse comportamento é consequência deliberada da fronteira transacional por lote definida no ADR 0010. Reverter todos os batches exigiria uma transação longa para milhões de linhas ou uma operação compensatória potencialmente cara, propriedades que o desafio não exige. O estado `FAILED` indica que a importação não deve ser interpretada como completa, mesmo que consultas de diagnóstico consigam observar o subconjunto já confirmado.
+
 ## Alternativas rejeitadas
 
 - confiar apenas nos limites `VARCHAR`: a alocação já teria acontecido antes de chegar ao PostgreSQL;
@@ -42,10 +48,13 @@ O parser trabalha com `Reader` e Strings; o risco que queremos controlar é a qu
 - `Files.readAllLines` ou `BufferedReader.readLine()`: materializaria linhas e quebraria o suporte correto a CSV quoted/multiline;
 - tratar sintaxe ou UTF-8 inválidos como falha transitória: repete um arquivo determinístico que continuará inválido;
 - reduzir drasticamente `MAX_UPLOAD_SIZE`: conflita com o requisito de ingestão de arquivos grandes;
-- trocar a biblioteca CSV apenas por esse limite: custo e risco desproporcionais quando uma barreira pequena antes do parser resolve a propriedade necessária.
+- trocar a biblioteca CSV apenas por esse limite: custo e risco desproporcionais quando uma barreira pequena antes do parser resolve a propriedade necessária;
+- tornar o arquivo inteiro uma única transação apenas para rollback total: aumenta duração transacional e retenção de recursos em um workload de milhões de linhas sem requisito de atomicidade global.
 
 ## Consequências
 
 O uso de memória do Worker passa a ser limitado também pelo maior registro permitido, além dos buffers e do batch. Um CSV com registro acima do limite, sintaxe inválida ou codificação UTF-8 inválida é classificado como arquivo inválido, o job converge para `FAILED` e o arquivo temporário é removido pelo fluxo já existente sem uma redelivery desnecessária.
+
+Batches já confirmados antes de uma falha estrutural permanecem persistidos. Eles representam progresso durável para diagnóstico, não uma importação bem-sucedida; a terminalidade e a validade da importação continuam determinadas pelo estado do job.
 
 O valor `4096` é uma política inicial e configurável, não um número de performance. Se o contrato de entrada ganhar campos maiores, o limite deverá ser revisto junto com os limites de domínio e de banco.
