@@ -16,7 +16,7 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R10 | Obrigatório | Índices adequados | Erros reutilizam `(import_id, source_row)`; transações usam `(import_id, id)`; analytics usa cobertura por `import_id` com colunas incluídas | Migrações, definição dos índices e futuro `EXPLAIN ANALYZE` em dados representativos |
 | R11 | Obrigatório | Interface responsiva | Paginação server-side e lista virtualizada | Teste de interface e inspeção do DOM |
 | R12 | Obrigatório | Execução plug-and-play | Docker Compose e variáveis documentadas | Execução limpa de `docker compose up` |
-| D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho com ACK manual, redelivery limitado e DLQ | Testes de ACK, redelivery, DLQ e E2E com broker real |
+| D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho com ACK manual, no máximo uma redelivery de processamento e DLQ mesmo quando não é possível persistir `FAILED` após o orçamento de retry | Testes de ACK, primeira redelivery, convergência para DLQ, falha ao persistir estado terminal e E2E com broker real |
 | S01 | Decisão | Atualização de status | Polling em `GET /imports/{id}` sobre estado persistido; resposta com `no-store` | Teste do contrato HTTP, E2E e futura interrupção do polling no React em estado terminal |
 | S02 | Decisão | Evitar duplicação | `UNIQUE (import_id, source_row)` e inserts idempotentes por lote | Teste de reprocessamento sem duplicação de dados ou progresso |
 | S03 | Decisão | Armazenamento intermediário | Volume Docker temporário removido depois do estado terminal | Testes de storage/Worker e E2E de cleanup |
