@@ -36,3 +36,7 @@ O relatório de desempenho deverá registrar:
 - planos de execução antes e depois dos índices.
 
 Um número sem esse contexto não será usado para justificar configuração ou desempenho.
+
+## Validação contínua
+
+O workflow de CI executa o backend completo, inclusive os testes Testcontainers, e valida separadamente o gerador determinístico. O benchmark oficial não roda em runner compartilhado porque seus resultados precisam de recursos de hardware controlados.
