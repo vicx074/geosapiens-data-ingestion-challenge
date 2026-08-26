@@ -70,6 +70,8 @@ Erros serão classificados:
 
 Não haverá captura genérica que transforme falha em sucesso, retry infinito ou fallback silencioso.
 
+Para falhas de processamento, o orçamento atual é a entrega original mais uma redelivery. Depois que uma mensagem já redelivered falha novamente, ela não volta para a fila principal. O Worker tenta registrar `FAILED` e rejeita a mensagem sem requeue para que o RabbitMQ a encaminhe à DLQ. Se até a persistência de `FAILED` estiver indisponível, a mensagem também segue para a DLQ: o job pode permanecer temporariamente não terminal e exigir reconciliação, mas o sistema evita transformar uma indisponibilidade do PostgreSQL em um loop quente de consumo e requeue. O trade-off completo está no ADR 0016.
+
 ### Limite de consistência entre banco e broker
 
 A criação do job e a intenção de publicação serão confirmadas na mesma transação do PostgreSQL por meio de Transactional Outbox. Um publicador interno da API enviará as mensagens pendentes ao RabbitMQ e somente as marcará como publicadas depois do publisher confirm.
