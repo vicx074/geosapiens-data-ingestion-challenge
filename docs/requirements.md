@@ -7,7 +7,7 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R01 | Obrigatório | Backend Java com Spring Boot | Aplicação Spring Boot containerizada | Build e teste de inicialização |
 | R02 | Obrigatório | Frontend React | Aplicação React containerizada | Build e teste de interface |
 | R03 | Obrigatório | CSV com mais de 1 milhão de linhas | Gerador determinístico versionado | Contagem e checksum dos parâmetros |
-| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco; Worker com parser progressivo e buffer de lote limitado | Testes de storage/parser/batch, E2E do fluxo e benchmark |
+| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco; Worker com parser progressivo, limite de registro antes da materialização e buffer de lote limitado | Testes de storage/parser/batch, registro oversized/multiline, E2E do fluxo e benchmark |
 | R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker RabbitMQ com concorrência e prefetch limitados | Testes de contrato, mensageria e E2E com PostgreSQL + RabbitMQ reais |
 | R06 | Obrigatório | Batch insert | JDBC batch configurável; transações, erros e progresso confirmados na mesma transação por lote | Testes de integração, rollback, E2E e benchmark |
 | R07 | Obrigatório | Status e erros | `GET /imports/{id}` expõe estado e contadores duráveis; `GET /imports/{id}/errors` expõe rejeições em páginas limitadas | Testes de caso de uso, contrato HTTP, persistência, continuidade entre páginas e E2E |
@@ -20,6 +20,7 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | S01 | Decisão | Atualização de status | Polling em `GET /imports/{id}` sobre estado persistido; resposta com `no-store` | Teste do contrato HTTP, E2E e futura interrupção do polling no React em estado terminal |
 | S02 | Decisão | Evitar duplicação | `UNIQUE (import_id, source_row)` e inserts idempotentes por lote | Teste de reprocessamento sem duplicação de dados ou progresso |
 | S03 | Decisão | Armazenamento intermediário | Volume Docker temporário removido depois do estado terminal | Testes de storage/Worker e E2E de cleanup |
+| S04 | Decisão | Observabilidade mínima | Logs estruturados por job; métricas de entregas/duração do Worker com outcomes de baixa cardinalidade; Actuator para JVM/HTTP/RabbitMQ | Teste das métricas customizadas, inspeção de `/actuator/metrics` e logs sem dados financeiros |
 
 ## Benchmark obrigatório do projeto
 
