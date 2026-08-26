@@ -9,7 +9,8 @@ O desafio não fornece um dataset nem um schema fechado. Este contrato define o 
 - primeira linha obrigatoriamente contém o cabeçalho;
 - terminador de linha `LF`;
 - campos seguem as regras de escape do formato CSV;
-- cabeçalho e ordem exatos: `transaction_id,occurred_at,amount,category`.
+- cabeçalho e ordem exatos: `transaction_id,occurred_at,amount,category`;
+- cada registro lógico possui limite configurável de caracteres, inicialmente `4096`, aplicado antes da materialização pelo parser.
 
 ## Colunas
 
@@ -17,7 +18,7 @@ O desafio não fornece um dataset nem um schema fechado. Este contrato define o 
 |---|---|---|
 | `transaction_id` | Texto não vazio com até 64 caracteres | Identificação da transação na origem e exibição na listagem |
 | `occurred_at` | Data e hora ISO 8601 em UTC | Filtro e agregação mensal sem depender do fuso do servidor |
-| `amount` | Decimal com duas casas, diferente de zero | Soma financeira exata sem aritmética de ponto flutuante |
+| `amount` | Decimal `NUMERIC(19,2)`, duas casas e diferente de zero | Soma financeira exata sem aritmética de ponto flutuante e alinhamento com o schema PostgreSQL |
 | `category` | Texto não vazio com até 100 caracteres | Agrupamento exigido para o dashboard |
 
 O número da linha não aparece no CSV como coluna. O Worker o contará durante a leitura e o persistirá como `source_row`, formando com `import_id` a chave de idempotência do reprocessamento.
@@ -30,4 +31,4 @@ Não foi adicionada uma descrição livre porque ela não participa de nenhum re
 
 ## Linhas inválidas
 
-Uma linha que não respeite o número de colunas, os limites ou os formatos será rejeitada individualmente. O erro deverá registrar `source_row`, código e motivo, sem interromper as demais linhas do arquivo.
+Uma linha que não respeite o número de colunas, os limites ou os formatos será rejeitada individualmente. Um registro que exceda o limite global de caracteres torna o arquivo estruturalmente inválido, pois a barreira existe para preservar a propriedade de memória limitada antes que o parser materialize a linha. Erros de linha válidos estruturalmente registram `source_row`, código e motivo sem interromper as demais linhas do arquivo.
