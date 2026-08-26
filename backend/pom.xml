@@ -11,7 +11,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.github.vicx074</groupId>
+  <groupId>io.github.vicx074</groupId>
   <artifactId>geosapiens-backend</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>geosapiens-backend</name>
