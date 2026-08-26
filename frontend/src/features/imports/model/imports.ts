@@ -31,6 +31,25 @@ export type IngestionStatusResponse = {
   failureReason: string | null
 }
 
+export type CategoryAggregateResponse = {
+  category: string
+  transactionCount: number
+  totalAmount: number
+}
+
+export type MonthAggregateResponse = {
+  month: string
+  transactionCount: number
+  totalAmount: number
+}
+
+export type IngestionAnalyticsResponse = {
+  transactionCount: number
+  totalAmount: number
+  byCategory: CategoryAggregateResponse[]
+  byMonth: MonthAggregateResponse[]
+}
+
 export type StatusPresentation = {
   label: string
   description: string

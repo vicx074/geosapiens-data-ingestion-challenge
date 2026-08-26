@@ -77,7 +77,11 @@ React Router será usado somente para navegação da SPA. O identificador da imp
 
 ### Gráficos
 
-Gráficos simples serão renderizados a partir de `/imports/{id}/analytics`; o navegador não recalcula agregações percorrendo as transações. A biblioteca gráfica deverá ser carregada de forma compatível com o bundle e não poderá transformar o dashboard em dependência para o fluxo inicial de upload.
+Gráficos simples são renderizados por componentes **React + TypeScript** a partir de `/imports/{id}/analytics`; o navegador não recalcula agregações percorrendo páginas de transações.
+
+No escopo atual, distribuição por categoria e série mensal não exigem eixos interativos, zoom, tooltip complexo ou composição estatística. Por isso, as visualizações usam HTML semântico e CSS orientado pelos valores agregados, sem adicionar uma biblioteca gráfica apenas para desenhar barras simples. Os valores permanecem disponíveis como texto, de modo que a informação não dependa somente de forma ou cor.
+
+Essa decisão deve ser revista se surgirem requisitos que justifiquem uma biblioteca madura, como múltiplas séries, escalas complexas, interação avançada, acessibilidade gráfica especializada ou visualizações em que uma implementação própria começaria a reproduzir uma engine de charts.
 
 ### Organização do código
 
@@ -146,6 +150,10 @@ Foi rejeitado porque virtualizar o DOM não impede o crescimento da memória Jav
 
 Foi rejeitado porque o backend já recebe o arquivo em streaming e processa de forma assíncrona. Chunking de aplicação criaria um novo protocolo e mudaria o System Design sem requisito correspondente.
 
+### Biblioteca gráfica desde o primeiro dashboard
+
+Foi rejeitada porque as duas visualizações atuais são barras simples sobre dados já agregados pelo backend. Introduzir uma engine de charts antes de existir necessidade de eixos, interação ou composição mais sofisticada aumentaria bundle e superfície de abstração sem resolver um problema concreto.
+
 ## Consequências
 
 ### Positivas
@@ -155,13 +163,15 @@ Foi rejeitado porque o backend já recebe o arquivo em streaming e processa de f
 - polling não vira lógica artesanal espalhada em componentes;
 - navegação e refresh preservam o job atual;
 - rede, memória JavaScript e DOM permanecem limitados por mecanismos distintos;
-- o frontend continua pequeno o suficiente para ser compreendido durante a avaliação técnica.
+- o frontend continua pequeno o suficiente para ser compreendido durante a avaliação técnica;
+- visualizações simples permanecem leves e acessíveis sem dependência gráfica adicional.
 
 ### Custos
 
 - SWR e TanStack Virtual adicionam duas dependências ao bundle;
 - navegação por cursor exige guardar histórico mínimo para retorno à página anterior;
 - virtualização exige cuidado com acessibilidade, altura das linhas e comportamento responsivo;
+- visualizações próprias devem permanecer simples; se crescerem em complexidade, a decisão de não usar uma biblioteca gráfica precisa ser revista;
 - a decisão deverá ser revisada se o escopo de mutations crescer significativamente.
 
 ## Relação com o System Design
@@ -175,4 +185,4 @@ React -> API: polling GET /imports/{id}
 React -> API -> PostgreSQL: status, paginação e agregações
 ```
 
-SWR, React Router e TanStack Virtual são detalhes internos do componente React e não alteram a topologia arquitetural.
+SWR, React Router, TanStack Virtual e os componentes visuais do dashboard são detalhes internos do componente React e não alteram a topologia arquitetural.
