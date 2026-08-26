@@ -99,3 +99,64 @@ jobs:
           python tools/generate_dataset.py
           --rows 10000
           --output "${{ runner.temp }}/transactions-10000.csv"
+
+  compose:
+    name: Docker Compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [backend, frontend, dataset]
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v6
+
+      - name: Validar a configuração do Compose
+        run: docker compose config --quiet
+
+      - name: Gerar dataset pequeno para o smoke test
+        run: >-
+          python tools/generate_dataset.py
+          --rows 250
+          --output "${{ runner.temp }}/transactions-smoke.csv"
+
+      - name: Subir a solução completa
+        run: docker compose up --build --wait --wait-timeout 240
+
+      - name: Validar UI, proxy e ingestão assíncrona
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error http://localhost:8080/ >/dev/null
+          curl --fail --silent --show-error http://localhost:8080/api/actuator/health >/dev/null
+
+          upload_response="$(curl --fail --silent --show-error \
+            -F "file=@${RUNNER_TEMP}/transactions-smoke.csv;type=text/csv" \
+            http://localhost:8080/api/imports)"
+          job_id="$(python -c 'import json, sys; print(json.load(sys.stdin)["jobId"])' <<< "${upload_response}")"
+
+          terminal=false
+          status=""
+          for _ in {1..60}; do
+            status_response="$(curl --fail --silent --show-error "http://localhost:8080/api/imports/${job_id}")"
+            terminal="$(python -c 'import json, sys; print(str(json.load(sys.stdin)["terminal"]).lower())' <<< "${status_response}")"
+            status="$(python -c 'import json, sys; print(json.load(sys.stdin)["status"])' <<< "${status_response}")"
+            if [[ "${terminal}" == "true" ]]; then
+              break
+            fi
+            sleep 1
+          done
+
+          [[ "${terminal}" == "true" ]]
+          [[ "${status}" == "COMPLETED" ]]
+
+          curl --fail --silent --show-error "http://localhost:8080/api/imports/${job_id}/analytics" >/dev/null
+          curl --fail --silent --show-error "http://localhost:8080/api/imports/${job_id}/transactions?limit=10" >/dev/null
+
+      - name: Coletar logs em caso de falha
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Derrubar a solução
+        if: always()
+        run: docker compose down --volumes --remove-orphans
