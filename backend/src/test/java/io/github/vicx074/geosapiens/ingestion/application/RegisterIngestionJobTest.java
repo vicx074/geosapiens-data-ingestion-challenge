@@ -53,8 +53,7 @@ class RegisterIngestionJobTest {
 
   @BeforeEach
   void cleanDatabase() {
-    jdbcClient.sql("TRUNCATE TABLE ingestion_outbox").update();
-    jdbcClient.sql("TRUNCATE TABLE ingestion_jobs").update();
+    jdbcClient.sql("TRUNCATE TABLE ingestion_outbox, ingestion_jobs").update();
   }
 
   @Test
