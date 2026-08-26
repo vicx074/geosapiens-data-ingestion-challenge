@@ -92,6 +92,8 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
   }
 
   private static IOException classifyReadFailure(IOException cause) {
+    // Falhas provocadas pelo próprio conteúdo são definitivas e não devem consumir retry do broker;
+    // somente I/O externo permanece como falha transitória para a política de redelivery do Worker.
     if (cause instanceof CsvRecordTooLargeException tooLarge) {
       throw invalidOversizedRecord(tooLarge);
     }
