@@ -26,6 +26,8 @@ A resposta contém apenas estado e metadados de tamanho constante:
 
 Os contadores retornados são os contadores persistidos do job. Não haverá contador paralelo em memória na API.
 
+Os timestamps fazem parte do contrato HTTP e são serializados explicitamente como strings ISO-8601 em UTC. O adaptador web faz essa conversão para que o formato público não dependa de configuração implícita do serializer JSON.
+
 A resposta usa `Cache-Control: no-store` para evitar que caches intermediários devolvam um estado antigo durante o polling.
 
 Uma importação inexistente retorna `404` em `application/problem+json` por meio do tratamento centralizado de exceções.
@@ -47,7 +49,8 @@ O status expõe `rejectedRows`, mas não um array de erros. Os detalhes de `inge
 - Retornar todos os erros no status: transforma uma consulta frequente em resposta potencialmente proporcional a milhões de linhas.
 - SSE ou WebSocket: adicionam conexão persistente sem necessidade demonstrada; polling já atende ao fluxo unidirecional previsto no system design.
 - Percentual estimado sem total conhecido: apresenta precisão inexistente ao usuário.
+- Deixar o formato temporal depender apenas da configuração global do Jackson: torna o contrato menos explícito e pode produzir representações diferentes em testes isolados ou mudanças futuras de configuração.
 
 ## Consequências
 
-O polling permanece barato e previsível em tamanho. A API lê uma linha de `ingestion_jobs`, cuja chave primária já atende à busca por identificador. Nenhum índice adicional é necessário para este endpoint. O próximo marco de erros ou listagem poderá adicionar seus próprios índices somente quando a consulta concreta existir.
+O polling permanece barato e previsível em tamanho. A API lê uma linha de `ingestion_jobs`, cuja chave primária já atende à busca por identificador. Nenhum índice adicional é necessário para este endpoint. O contrato temporal permanece estável em ISO-8601. O próximo marco de erros ou listagem poderá adicionar seus próprios índices somente quando a consulta concreta existir.
