@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public final class PostgresIngestionJobRepository implements IngestionJobRepository {
+public class PostgresIngestionJobRepository implements IngestionJobRepository {
 
   private static final String JOB_COLUMNS = """
       id,

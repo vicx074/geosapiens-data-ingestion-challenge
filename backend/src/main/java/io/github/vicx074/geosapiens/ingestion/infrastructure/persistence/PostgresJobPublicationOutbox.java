@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public final class PostgresJobPublicationOutbox implements JobPublicationOutbox {
+public class PostgresJobPublicationOutbox implements JobPublicationOutbox {
 
   private final JdbcClient jdbcClient;
 
