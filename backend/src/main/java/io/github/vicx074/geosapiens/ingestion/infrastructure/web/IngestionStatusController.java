@@ -3,6 +3,7 @@ package io.github.vicx074.geosapiens.ingestion.infrastructure.web;
 import io.github.vicx074.geosapiens.ingestion.application.GetIngestionStatus;
 import io.github.vicx074.geosapiens.ingestion.domain.IngestionJob;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -37,11 +38,11 @@ public class IngestionStatusController {
       long acceptedRows,
       long rejectedRows,
       boolean terminal,
-      Instant createdAt,
-      Instant queuedAt,
-      Instant startedAt,
-      Instant finishedAt,
-      Instant updatedAt,
+      String createdAt,
+      String queuedAt,
+      String startedAt,
+      String finishedAt,
+      String updatedAt,
       String failureReason) {
 
     static IngestionStatusResponse from(IngestionJob job) {
@@ -53,12 +54,16 @@ public class IngestionStatusController {
           job.getAcceptedRows(),
           job.getRejectedRows(),
           job.getStatus().isTerminal(),
-          job.getCreatedAt(),
-          job.getQueuedAt().orElse(null),
-          job.getStartedAt().orElse(null),
-          job.getFinishedAt().orElse(null),
-          job.getUpdatedAt(),
+          job.getCreatedAt().toString(),
+          format(job.getQueuedAt()),
+          format(job.getStartedAt()),
+          format(job.getFinishedAt()),
+          job.getUpdatedAt().toString(),
           job.getFailureReason().orElse(null));
+    }
+
+    private static String format(Optional<Instant> instant) {
+      return instant.map(Instant::toString).orElse(null);
     }
   }
 }
