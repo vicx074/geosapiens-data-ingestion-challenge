@@ -93,13 +93,13 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
 
   private static IOException classifyReadFailure(IOException cause) {
     if (cause instanceof CsvRecordTooLargeException tooLarge) {
-      return invalidOversizedRecord(tooLarge);
+      throw invalidOversizedRecord(tooLarge);
     }
     if (cause instanceof CSVException csvException) {
-      return invalidCsvSyntax(csvException);
+      throw invalidCsvSyntax(csvException);
     }
     if (cause instanceof CharacterCodingException codingException) {
-      return invalidUtf8(codingException);
+      throw invalidUtf8(codingException);
     }
     return cause;
   }
