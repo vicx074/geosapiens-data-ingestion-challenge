@@ -58,10 +58,10 @@ public final class RabbitJobQueuePublisher implements JobQueuePublisher {
             "O RabbitMQ devolveu a mensagem por ausência de rota para o job %s."
                 .formatted(jobId));
       }
-      if (!confirm.ack()) {
+      if (!confirm.isAck()) {
         throw new JobQueuePublicationException(
             "O RabbitMQ recusou a publicação do job %s: %s"
-                .formatted(jobId, confirm.reason()));
+                .formatted(jobId, confirm.getReason()));
       }
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
