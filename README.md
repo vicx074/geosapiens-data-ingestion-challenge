@@ -40,9 +40,11 @@ cd backend
 
 O Worker consome jobs do RabbitMQ com concorrência e prefetch limitados, abre o CSV pelo identificador do job e percorre o conteúdo progressivamente com Apache Commons CSV. O cabeçalho e o contrato das linhas são validados durante a leitura, sem materializar o arquivo inteiro.
 
+Além do streaming, cada registro lógico é limitado antes que o Commons CSV materialize seus campos. O valor inicial é `4096` caracteres e pode ser alterado por `CSV_MAX_RECORD_CHARACTERS`. A barreira entende campos quoted com quebras de linha, impedindo que um único registro patológico contorne o limite dividindo-se em várias linhas físicas. `amount` também é validado contra a precisão `NUMERIC(19,2)` usada pelo PostgreSQL antes de entrar no batch. A decisão está no ADR 0017.
+
 As linhas classificadas são acumuladas em lotes limitados e persistidas via JDBC batch. Cada lote confirma transações válidas, erros de linha e progresso do job na mesma transação do PostgreSQL. `UNIQUE (import_id, source_row)` e `ON CONFLICT DO NOTHING` tornam a persistência idempotente diante de redelivery. O tamanho inicial é de 1000 linhas por lote e permanece configurável por `WORKER_BATCH_SIZE`; esse valor só será defendido após benchmark.
 
-Depois que o job alcança estado terminal durável, o Worker remove o CSV temporário. Mensagens redelivered de jobs já terminais e a própria limpeza são tratadas de forma idempotente.
+Depois que o job alcança estado terminal durável, o Worker remove o CSV temporário. Mensagens redelivered de jobs já terminais e a própria limpeza são tratadas de forma idempotente. O orçamento de falha de processamento é a entrega original mais uma redelivery; após isso a mensagem converge para DLQ mesmo se o PostgreSQL estiver indisponível para registrar `FAILED`, evitando requeue sem limite. Esse cenário de reconciliação está detalhado no ADR 0016.
 
 ### Acompanhamento da importação
 
@@ -93,6 +95,25 @@ GET /imports/{id}/analytics
 A resposta contém `transactionCount`, `totalAmount`, `byCategory` e `byMonth`. O mês é representado como `YYYY-MM` e calculado explicitamente em UTC.
 
 As três visões são produzidas na mesma instrução SQL com `GROUPING SETS`, evitando somar milhões de registros em Java e mantendo os resultados no mesmo snapshot. O índice `idx_transactions_analytics_by_import` filtra por `import_id` e inclui `category`, `occurred_at` e `amount` para permitir acesso coberto quando o planner considerar vantajoso. O custo/benefício será confirmado no benchmark com `EXPLAIN (ANALYZE, BUFFERS)`; a decisão completa está no ADR 0014.
+
+### Observabilidade
+
+O console usa logging estruturado Logstash do próprio Spring Boot. O Worker registra campos estáveis como `jobId`, `status`, `processedRows`, `acceptedRows`, `rejectedRows`, `durationMs` e a ação tomada, sem registrar valores financeiros ou conteúdo bruto do CSV.
+
+O Micrometer expõe duas métricas específicas do Worker:
+
+```text
+ingestion.worker.deliveries
+ingestion.worker.delivery.duration
+```
+
+Ambas usam somente `outcome=ack|redelivery|dead_letter`. `jobId` não é usado como tag para evitar cardinalidade não limitada. Actuator expõe `health`, `info` e `metrics`; por exemplo:
+
+```http
+GET /actuator/metrics/ingestion.worker.deliveries
+```
+
+As métricas são auxiliares e *best effort*: falha de telemetria não muda ACK, redelivery, DLQ nem estado do job. O PostgreSQL continua sendo a fonte de verdade. A decisão está no ADR 0018.
 
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 
