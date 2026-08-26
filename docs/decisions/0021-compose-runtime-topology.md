@@ -38,6 +38,10 @@ API e Worker montam o mesmo volume nomeado em `/data/uploads`.
 
 A API grava o multipart nesse volume e o Worker abre o arquivo pelo identificador persistido. Depois do estado terminal durável, o Worker remove o CSV. O volume não substitui PostgreSQL como fonte de verdade e não é usado para persistência definitiva.
 
+Volumes nomeados podem ser montados com o diretório raiz pertencendo a `root`, independentemente do usuário definido na imagem. Por isso, a imagem possui uma inicialização mínima: o entrypoint cria/ajusta **somente** `/data/uploads` e então usa `su-exec` para iniciar a JVM com UID/GID fixos `10001`, sem privilégios.
+
+O processo Java não permanece como `root`. Esse pequeno passo de bootstrap também torna a imagem resiliente a um volume pré-existente com ownership incorreto, sem introduzir um serviço de inicialização adicional no Compose.
+
 ### PostgreSQL e RabbitMQ
 
 PostgreSQL e RabbitMQ usam volumes nomeados próprios e health checks. Os serviços de backend só iniciam depois que suas dependências estão saudáveis.
@@ -88,6 +92,14 @@ Rejeitado para a entrega padrão. Embora o código seja um monólito modular, o 
 
 Rejeitado. Duplicaria build, configuração e regras sem necessidade do desafio.
 
+### Serviço separado apenas para `chown` do volume
+
+Rejeitado. Acrescentaria um container de inicialização à topologia de entrega apenas para corrigir ownership. O entrypoint da própria imagem consegue limitar a operação ao diretório de upload e remover privilégios antes da JVM, com menos superfície operacional.
+
+### Executar a JVM como `root`
+
+Rejeitado. Resolveria a permissão do volume, mas aumentaria privilégios do processo de aplicação durante toda a execução sem necessidade.
+
 ### Expor backend, PostgreSQL e RabbitMQ diretamente no host
 
 Rejeitado como padrão. O frontend e `/api` são suficientes para uso e avaliação; portas adicionais aumentariam superfície e risco de conflito local.
@@ -111,4 +123,4 @@ Spring Boot Worker -> PostgreSQL
 Spring Boot Worker -> cleanup do volume
 ```
 
-Não há mudança da topologia arquitetural.
+O entrypoint é detalhe interno da imagem e não cria um serviço ou fluxo arquitetural novo. A topologia permanece a mesma.
