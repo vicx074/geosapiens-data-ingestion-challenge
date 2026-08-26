@@ -72,7 +72,9 @@ Não haverá captura genérica que transforme falha em sucesso, retry infinito o
 
 ### Limite de consistência entre banco e broker
 
-A criação do job e a publicação no RabbitMQ não compartilham uma transação. Essa janela de falha será resolvida antes da implementação da publicação, por meio de uma decisão específica entre confirmação explícita do broker e Transactional Outbox. Não será escondida por retry local sem rastreabilidade.
+A criação do job e a intenção de publicação serão confirmadas na mesma transação do PostgreSQL por meio de Transactional Outbox. Um publicador interno da API enviará as mensagens pendentes ao RabbitMQ e somente as marcará como publicadas depois do publisher confirm.
+
+Uma falha antes da publicação mantém a mensagem pendente. Uma falha depois da confirmação do broker e antes da atualização do Outbox pode produzir publicação duplicada; por isso, o consumidor continuará idempotente. Tentativas e último erro permanecerão persistidos, sem retry local invisível. Os detalhes e alternativas estão no ADR 0007.
 
 ## Máquina de estados
 
