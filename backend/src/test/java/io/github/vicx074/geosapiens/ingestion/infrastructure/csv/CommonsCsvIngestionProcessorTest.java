@@ -9,6 +9,7 @@ import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowError;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvTransactionRow;
 import io.github.vicx074.geosapiens.ingestion.infrastructure.config.CsvIngestionProperties;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -58,6 +59,32 @@ class CommonsCsvIngestionProcessorTest {
             new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
             CsvRowConsumer.DISCARDING))
         .withMessageContaining("Cabeçalho CSV inválido");
+  }
+
+  @Test
+  void shouldRejectSyntacticallyMalformedCsvWithoutTreatingItAsInfrastructureFailure() {
+    String csv = "transaction_id,occurred_at,amount,category\n"
+        + "txn-0001,2025-01-02T03:04:05Z,10.50,\"categoria sem fechamento\n";
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("sintaticamente inválido");
+  }
+
+  @Test
+  void shouldRejectMalformedUtf8AsInvalidInput() throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    bytes.write("transaction_id,occurred_at,amount,category\n"
+        .getBytes(StandardCharsets.UTF_8));
+    bytes.write(new byte[] {(byte) 0xC3, 0x28});
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(bytes.toByteArray()),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("UTF-8 válida");
   }
 
   @Test
