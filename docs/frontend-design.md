@@ -2,9 +2,9 @@
 
 ## Objetivo
 
-O frontend deve demonstrar domínio de React e performance sem sacrificar clareza operacional. O produto é uma interface de ingestão e análise de dados, não uma landing page promocional.
+O frontend demonstra domínio de React e performance sem sacrificar clareza operacional. O produto é uma interface de ingestão e análise de dados, não uma landing page promocional.
 
-A qualidade visual será tratada como requisito funcional: hierarquia, estados, acessibilidade, responsividade e densidade precisam sustentar o uso com grande volume de dados.
+A qualidade visual é tratada como requisito funcional: hierarquia, estados, acessibilidade, responsividade e densidade precisam sustentar o uso com grande volume de dados.
 
 ## Princípios
 
@@ -18,11 +18,11 @@ Ordem de prioridade:
 6. acessibilidade;
 7. movimento discreto e funcional.
 
-Não usar efeitos para esconder uma arquitetura de informação fraca.
+Efeitos não são usados para esconder arquitetura de informação fraca.
 
 ## Direção visual
 
-A direção inicial é um **console de operações de dados**:
+A direção adotada é um **console de operações de dados**:
 
 - superfícies neutras e contraste confortável;
 - tipografia com hierarquia forte;
@@ -34,7 +34,7 @@ A direção inicial é um **console de operações de dados**:
 - sem gradientes decorativos, blobs ou cards idênticos apenas para preencher espaço;
 - animações rápidas e discretas, preferindo `transform` e `opacity`.
 
-A aparência final deve ser autoral, mas a originalidade não pode reduzir legibilidade ou produtividade.
+A aparência busca identidade sem reduzir legibilidade ou produtividade.
 
 ## Arquitetura da informação
 
@@ -51,11 +51,11 @@ Prioridade visual:
 5. explicação curta do fluxo `upload -> fila -> processamento -> análise`;
 6. feedback de erro e instrução de recuperação.
 
-A dropzone precisa possuir `input[type=file]` real e ser utilizável por teclado.
+A dropzone possui `input[type=file]` real e é utilizável por teclado.
 
 ### Detalhes da importação
 
-Rota planejada:
+Rota:
 
 ```text
 /imports/:id
@@ -70,7 +70,7 @@ Prioridade:
 5. transações;
 6. erros.
 
-O refresh da página não deve perder a importação porque o `jobId` pertence à URL.
+O refresh da página não perde a importação porque o `jobId` pertence à URL e o estado é reconstruído pela API.
 
 ### Status
 
@@ -85,28 +85,28 @@ COMPLETED_WITH_ERRORS
 FAILED
 ```
 
-Enquanto o total durável não existir, não exibir porcentagem calculada ou estimada. Exibir contadores confirmados e um indicador de atividade indeterminado.
+Como o total durável não existe no contrato, a UI não exibe porcentagem calculada ou estimada. Exibe contadores confirmados e indicador de atividade durante processamento.
 
-Mudanças automáticas de status devem ser anunciadas de forma não intrusiva para tecnologia assistiva.
+Mudanças automáticas de status são anunciadas de forma não intrusiva para tecnologia assistiva.
 
 ### Dashboard
 
-Usar apenas métricas retornadas pela API. Não recalcular agregações percorrendo páginas de transações no navegador.
+O dashboard usa apenas métricas retornadas pela API. Não recalcula agregações percorrendo páginas de transações no navegador.
 
-Indicadores devem ter pesos diferentes conforme importância. Evitar uma fileira de cards visualmente idênticos sem hierarquia.
+Indicadores possuem pesos diferentes conforme importância. A composição evita uma fileira de cards visualmente idênticos sem hierarquia.
 
-Visualizações planejadas:
+Visualizações:
 
-- total de transações aceitas/processadas quando fizer sentido para o contexto;
+- total de transações;
 - valor total;
 - distribuição por categoria;
 - série por mês.
 
-Gráficos precisam ter legenda/descrição textual suficiente para não depender apenas de cor.
+Os gráficos simples possuem informação textual suficiente para não depender apenas de cor.
 
 ### Transações
 
-A tabela deve combinar:
+A listagem combina:
 
 - keyset pagination do backend;
 - página limitada no cliente;
@@ -117,22 +117,22 @@ A tabela deve combinar:
 - navegação anterior/próxima por cursor;
 - responsividade sem comprimir todas as colunas até ficarem ilegíveis.
 
-Em telas pequenas, priorizar os campos essenciais e reorganizar detalhes secundários em vez de manter uma tabela desktop comprimida.
+Em telas pequenas, campos essenciais são priorizados e detalhes secundários são reorganizados.
 
 ### Erros
 
-Erros de linha usam endpoint paginado próprio. A interface deve explicar:
+Erros de linha usam endpoint paginado próprio. A interface apresenta:
 
 - qual linha falhou;
 - código/motivo disponível;
 - que outras linhas válidas podem ter sido processadas;
 - quando o job completo terminou com erros ou falhou definitivamente.
 
-Não esconder informação crítica somente em toast.
+Informação crítica não fica somente em toast.
 
-## Estados obrigatórios
+## Estados considerados
 
-Para cada funcionalidade relevante, verificar os estados aplicáveis:
+Para as funcionalidades relevantes, os testes e componentes consideram os estados aplicáveis entre:
 
 - default;
 - hover;
@@ -144,13 +144,14 @@ Para cada funcionalidade relevante, verificar os estados aplicáveis:
 - warning;
 - error;
 - empty;
-- no results;
 - falha de conexão;
 - conteúdo parcial durante processamento.
 
+Nem todo componente possui todos esses estados; a lista é uma régua de revisão, não uma exigência artificial de criar variantes sem sentido.
+
 ## Responsividade
 
-Larguras mínimas de inspeção:
+Larguras de referência usadas no design:
 
 ```text
 360px
@@ -169,11 +170,13 @@ Regras:
 - reordenar conteúdo conforme prioridade;
 - não transformar tabela em conteúdo ilegível;
 - simplificar movimento em telas menores;
-- evitar scroll horizontal na página inteira; se uma região de dados precisar dele, mantê-lo contido e explícito.
+- evitar scroll horizontal na página inteira; quando uma região de dados precisa dele, o overflow fica contido.
+
+Essas larguras são critérios de inspeção do layout, não uma alegação de teste visual manual em todo dispositivo real.
 
 ## Acessibilidade
 
-Obrigatório:
+A implementação prioriza:
 
 - HTML semântico;
 - labels e nomes acessíveis;
@@ -188,17 +191,19 @@ Obrigatório:
 
 ## Performance de renderização
 
-- não renderizar milhares de linhas simultaneamente;
-- não acumular páginas ilimitadamente em memória;
-- evitar Effects usados apenas para derivar estado que pode ser calculado no render;
-- não aplicar `memo`, `useMemo` e `useCallback` indiscriminadamente;
-- medir antes de introduzir otimizações complexas;
-- lazy-load de recursos pesados que não participem do primeiro fluxo quando houver benefício comprovável;
+- páginas do backend limitam quantidade de dados transferidos;
+- TanStack Virtual evita montar toda a página de registros no DOM;
+- páginas visitadas não são acumuladas como infinite scroll sem limite;
+- Effects não são usados apenas para estado derivável durante render;
+- `memo`, `useMemo` e `useCallback` não são aplicados indiscriminadamente;
+- otimizações complexas exigem problema medido;
 - animações não devem causar relayout contínuo nem bloquear interação.
+
+Não há benchmark de FPS ou memória do navegador nesta entrega; a evidência existente é estrutural, comportamental e de DOM limitado.
 
 ## Estrutura de código
 
-Estrutura inicial:
+Estrutura adotada:
 
 ```text
 src/
@@ -226,28 +231,26 @@ src/
 
 Regras:
 
-- separar acesso remoto de componentes visuais;
-- separar regra de apresentação de primitives compartilhadas;
-- evitar arquivo monolítico para toda a página;
+- acesso remoto separado de componentes visuais;
+- regra de apresentação separada de primitives compartilhadas;
 - `shared` não depende de `features/imports`;
-- não criar abstrações genéricas sem segundo caso concreto;
-- não criar design system enorme antes de existirem componentes reais repetidos.
+- abstrações genéricas só aparecem quando existe segundo caso concreto;
+- não existe design system grande criado antes da necessidade.
 
 ## Critérios de aceite do frontend
 
-Antes de considerar o frontend concluído, validar:
+A implementação final é validada por:
 
-- upload por mouse e teclado;
+- upload por interação e input de arquivo;
 - navegação para o job retornado pelo `202 Accepted`;
 - polling ativo apenas enquanto necessário;
 - polling interrompido em estado terminal;
 - refresh preservando `/imports/:id`;
 - estados de loading/erro/vazio nas consultas;
 - analytics usando dados do backend;
-- paginação por cursor sem `OFFSET` no cliente;
+- paginação por cursor;
 - número limitado de elementos montados na tabela virtualizada;
-- layout funcional nas larguras definidas;
-- foco visível e navegação por teclado;
-- redução de movimento respeitada;
-- nenhuma ação falsa, dado fictício ou botão sem comportamento;
-- testes de comportamento para os fluxos críticos.
+- foco visível e navegação por teclado nos fluxos principais;
+- `prefers-reduced-motion` respeitado;
+- ausência de dados fictícios como fonte do dashboard;
+- testes de comportamento, typecheck e build de produção no CI.
