@@ -52,9 +52,21 @@ O upload responde `202 Accepted` com `Location: /imports/{id}`. O status pode se
 GET /imports/{id}
 ```
 
-A resposta é limitada em tamanho e usa o estado persistido no PostgreSQL como fonte de verdade. Ela informa estado, linhas processadas/aceitas/rejeitadas, timestamps e motivo de falha quando aplicável. Erros detalhados não são embutidos no polling; serão expostos por endpoint paginado próprio.
+A resposta é limitada em tamanho e usa o estado persistido no PostgreSQL como fonte de verdade. Ela informa estado, linhas processadas/aceitas/rejeitadas, timestamps e motivo de falha quando aplicável.
 
 Não é retornado percentual estimado enquanto o total de linhas não for conhecido de forma durável. `processedRows` representa trabalho efetivamente confirmado em batches.
+
+### Erros da importação
+
+Os detalhes das linhas rejeitadas possuem endpoint próprio para não aumentar o payload do polling:
+
+```http
+GET /imports/{id}/errors?limit=50&after=1250
+```
+
+A resposta usa keyset pagination ordenada por `sourceRow`. `nextCursor` deve ser enviado como `after` na chamada seguinte. O limite padrão é 50 e o máximo é 200.
+
+A consulta reutiliza a constraint única `(import_id, source_row)`, que já fornece um índice compatível. Não foi criado um índice adicional apenas para este endpoint porque ele seria redundante. A decisão e as alternativas estão registradas no ADR 0012.
 
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 

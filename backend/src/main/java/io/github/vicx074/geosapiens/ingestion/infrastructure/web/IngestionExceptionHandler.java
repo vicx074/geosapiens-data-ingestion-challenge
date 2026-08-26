@@ -1,6 +1,7 @@
 package io.github.vicx074.geosapiens.ingestion.infrastructure.web;
 
 import io.github.vicx074.geosapiens.ingestion.application.IngestionJobNotFoundException;
+import io.github.vicx074.geosapiens.ingestion.application.InvalidIngestionPaginationException;
 import io.github.vicx074.geosapiens.ingestion.application.InvalidIngestionUploadException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -17,6 +18,16 @@ public class IngestionExceptionHandler {
         exception.getMessage()
     );
     problem.setTitle("Upload inválido");
+    return problem;
+  }
+
+  @ExceptionHandler(InvalidIngestionPaginationException.class)
+  ProblemDetail handleInvalidPagination(InvalidIngestionPaginationException exception) {
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+        HttpStatus.BAD_REQUEST,
+        exception.getMessage()
+    );
+    problem.setTitle("Paginação inválida");
     return problem;
   }
 
