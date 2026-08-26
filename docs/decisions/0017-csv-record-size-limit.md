@@ -21,6 +21,8 @@ O contador entende aspas CSV suficientes para não confundir uma quebra de linha
 
 Ao ultrapassar o limite, a leitura é interrompida antes que o Commons CSV conclua a materialização do registro. O erro é convertido em `InvalidCsvFileException`, pois se trata de entrada definitivamente inválida, e não de uma falha transitória de infraestrutura que deveria consumir o orçamento de redelivery do RabbitMQ.
 
+A mesma classificação é aplicada a sintaxe CSV inválida reportada por `CSVException` e a sequências UTF-8 malformadas. Esses problemas pertencem ao arquivo recebido e não tendem a se resolver com uma nova entrega. Outras `IOException` originadas do storage continuam propagadas como falha de infraestrutura e podem consumir a redelivery limitada do Worker.
+
 Também será validado no parser que `amount` caiba em `NUMERIC(19,2)`. A escala já era verificada; limitar a precisão evita que uma linha individualmente inválida atravesse a validação e faça o PostgreSQL rejeitar o lote inteiro.
 
 ## Por que limitar o registro e não o arquivo
@@ -38,11 +40,12 @@ O parser trabalha com `Reader` e Strings; o risco que queremos controlar é a qu
 - confiar apenas nos limites `VARCHAR`: a alocação já teria acontecido antes de chegar ao PostgreSQL;
 - validar `String.length()` somente depois do parse: protege o banco, mas não protege o parser contra registro gigante;
 - `Files.readAllLines` ou `BufferedReader.readLine()`: materializaria linhas e quebraria o suporte correto a CSV quoted/multiline;
+- tratar sintaxe ou UTF-8 inválidos como falha transitória: repete um arquivo determinístico que continuará inválido;
 - reduzir drasticamente `MAX_UPLOAD_SIZE`: conflita com o requisito de ingestão de arquivos grandes;
 - trocar a biblioteca CSV apenas por esse limite: custo e risco desproporcionais quando uma barreira pequena antes do parser resolve a propriedade necessária.
 
 ## Consequências
 
-O uso de memória do Worker passa a ser limitado também pelo maior registro permitido, além dos buffers e do batch. Um CSV com um registro acima do limite é classificado como arquivo inválido, o job converge para `FAILED` e o arquivo temporário é removido pelo fluxo já existente.
+O uso de memória do Worker passa a ser limitado também pelo maior registro permitido, além dos buffers e do batch. Um CSV com registro acima do limite, sintaxe inválida ou codificação UTF-8 inválida é classificado como arquivo inválido, o job converge para `FAILED` e o arquivo temporário é removido pelo fluxo já existente sem uma redelivery desnecessária.
 
 O valor `4096` é uma política inicial e configurável, não um número de performance. Se o contrato de entrada ganhar campos maiores, o limite deverá ser revisto junto com os limites de domínio e de banco.
