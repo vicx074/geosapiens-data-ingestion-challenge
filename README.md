@@ -38,9 +38,11 @@ cd backend
 .\mvnw.cmd test
 ```
 
-O Worker já consome jobs do RabbitMQ com concorrência e prefetch limitados, abre o CSV pelo identificador do job e percorre o conteúdo progressivamente com Apache Commons CSV. O cabeçalho e o contrato das linhas são validados durante a leitura; linhas inválidas incrementam rejeições sem materializar o arquivo inteiro. Falhas transitórias recebem uma tentativa por redelivery antes do envio à DLQ.
+O Worker consome jobs do RabbitMQ com concorrência e prefetch limitados, abre o CSV pelo identificador do job e percorre o conteúdo progressivamente com Apache Commons CSV. O cabeçalho e o contrato das linhas são validados durante a leitura, sem materializar o arquivo inteiro.
 
-Neste marco incremental, o Worker persiste o estado final e os contadores do job, mas ainda não persiste as transações válidas nem os detalhes dos erros por linha. Essa persistência em batches é o próximo marco e utilizará os eventos de linha já produzidos pelo parser.
+As linhas classificadas são acumuladas em lotes limitados e persistidas via JDBC batch. Cada lote confirma transações válidas, erros de linha e progresso do job na mesma transação do PostgreSQL. `UNIQUE (import_id, source_row)` e `ON CONFLICT DO NOTHING` tornam a persistência idempotente diante de redelivery. O tamanho inicial é de 1000 linhas por lote e permanece configurável por `WORKER_BATCH_SIZE`; esse valor só será defendido após benchmark.
+
+Depois que o job alcança estado terminal durável, o Worker remove o CSV temporário. Mensagens redelivered de jobs já terminais e a própria limpeza são tratadas de forma idempotente.
 
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 

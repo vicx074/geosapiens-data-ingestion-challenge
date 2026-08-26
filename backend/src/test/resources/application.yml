@@ -27,6 +27,7 @@ app:
     enabled: false
     concurrency: 2
     prefetch: 1
+    batch-size: 1000
   outbox:
     enabled: false
     poll-interval: 1s

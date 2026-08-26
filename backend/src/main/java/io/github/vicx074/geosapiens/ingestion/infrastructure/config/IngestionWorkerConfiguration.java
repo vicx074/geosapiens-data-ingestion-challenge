@@ -1,5 +1,6 @@
 package io.github.vicx074.geosapiens.ingestion.infrastructure.config;
 
+import io.github.vicx074.geosapiens.ingestion.application.IngestionBatchPolicy;
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -9,6 +10,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 public class IngestionWorkerConfiguration {
+
+  @Bean
+  IngestionBatchPolicy ingestionBatchPolicy(WorkerProperties properties) {
+    return new IngestionBatchPolicy(properties.batchSize());
+  }
 
   @Bean
   SimpleRabbitListenerContainerFactory ingestionWorkerContainerFactory(
