@@ -53,12 +53,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Gerar lockfile reproduzível
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Instalar dependências
+      - name: Instalar dependências reproduzíveis
         run: npm ci
 
       - name: Verificar tipos
@@ -70,15 +68,8 @@ jobs:
       - name: Gerar build de produção
         run: npm run build
 
-      - name: Publicar lockfile para inclusão no repositório
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-package-lock
-          path: frontend/package-lock.json
-          if-no-files-found: error
-
   dataset:
-    name: Dataset
+    name: Dataset e benchmark helpers
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 
@@ -93,6 +84,9 @@ jobs:
 
       - name: Testar o gerador
         run: python -m unittest discover -s tools/tests -p 'test_*.py'
+
+      - name: Testar helpers do benchmark
+        run: python -m unittest discover -s benchmarks/tests -p 'test_*.py'
 
       - name: Gerar amostra determinística
         run: >-
