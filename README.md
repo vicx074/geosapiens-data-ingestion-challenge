@@ -68,6 +68,20 @@ A resposta usa keyset pagination ordenada por `sourceRow`. `nextCursor` deve ser
 
 A consulta reutiliza a constraint única `(import_id, source_row)`, que já fornece um índice compatível. Não foi criado um índice adicional apenas para este endpoint porque ele seria redundante. A decisão e as alternativas estão registradas no ADR 0012.
 
+### Transações da importação
+
+As transações válidas também são listadas em páginas limitadas:
+
+```http
+GET /imports/{id}/transactions?limit=50&after=1000
+```
+
+A keyset pagination usa o `id` persistido como cursor. `nextCursor` deve ser enviado como `after` na página seguinte. O limite padrão é 50 e o máximo é 200.
+
+A consulta usa `WHERE import_id = ? AND id > ? ORDER BY id`, sustentada pelo índice `(import_id, id)`. O endpoint não executa `COUNT(*)` por página: busca uma linha adicional apenas para descobrir se existe continuação. Os detalhes e trade-offs estão no ADR 0013.
+
+Enquanto o Worker ainda processa o arquivo, a lista representa apenas transações já commitadas. `nextCursor = null` não substitui o estado do job; o cliente deve consultar `GET /imports/{id}` para saber se a importação terminou.
+
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 
 ## Dataset
