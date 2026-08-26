@@ -51,6 +51,19 @@ public final class FileSystemTemporaryFileStorage implements TemporaryFileStorag
     }
   }
 
+  @Override
+  public void delete(String storageKey) throws IOException {
+    if (storageKey == null || storageKey.isBlank()) {
+      throw new IllegalArgumentException("A chave de armazenamento é obrigatória.");
+    }
+
+    Path file = baseDirectory.resolve(storageKey).normalize();
+    if (!file.startsWith(baseDirectory) || file.equals(baseDirectory)) {
+      throw new IllegalArgumentException("A chave de armazenamento é inválida.");
+    }
+    Files.deleteIfExists(file);
+  }
+
   private static long copyWithBoundedMemory(InputStream content, Path partialFile) throws IOException {
     byte[] buffer = new byte[COPY_BUFFER_SIZE_IN_BYTES];
     long storedBytes = 0;

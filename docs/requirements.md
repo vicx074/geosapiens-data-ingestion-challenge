@@ -7,8 +7,8 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R01 | Obrigatório | Backend Java com Spring Boot | Aplicação Spring Boot containerizada | Build e teste de inicialização |
 | R02 | Obrigatório | Frontend React | Aplicação React containerizada | Build e teste de interface |
 | R03 | Obrigatório | CSV com mais de 1 milhão de linhas | Gerador determinístico versionado | Contagem e checksum dos parâmetros |
-| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload e leitura progressivos | Teste com limite de memória e benchmark |
-| R05 | Obrigatório | Processamento assíncrono | `202 Accepted`, job persistido e Worker | Teste de contrato e integração |
+| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco e cópia com buffer fixo; leitura progressiva no Worker | Teste com stream gerado e benchmark |
+| R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker ainda pendente | Teste de contrato e integração |
 | R06 | Obrigatório | Batch insert | JDBC batch com tamanho configurável | Teste de integração e benchmark |
 | R07 | Obrigatório | Status e erros | Endpoint com contadores persistidos | Testes de estados e contrato |
 | R08 | Obrigatório | Paginação eficiente | Paginação por cursor | Plano de execução e teste de continuidade |

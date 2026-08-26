@@ -3,8 +3,15 @@ spring:
     addresses: localhost:5672
     username: guest
     password: guest
+  servlet:
+    multipart:
+      file-size-threshold: 0B
+      max-file-size: 128MB
+      max-request-size: 129MB
 
 app:
+  storage:
+    temporary-directory: ${java.io.tmpdir}/geosapiens-test-uploads
   messaging:
     ingestion-exchange: ingestion.jobs
     ingestion-queue: ingestion.jobs.process

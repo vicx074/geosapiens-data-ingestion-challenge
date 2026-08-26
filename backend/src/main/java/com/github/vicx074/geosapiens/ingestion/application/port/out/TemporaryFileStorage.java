@@ -11,4 +11,6 @@ public interface TemporaryFileStorage {
    * do chamador para que o adaptador não encerre um recurso que não criou.
    */
   StoredTemporaryFile store(UUID jobId, InputStream content) throws IOException;
+
+  void delete(String storageKey) throws IOException;
 }

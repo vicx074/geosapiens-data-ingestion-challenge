@@ -84,6 +84,21 @@ class FileSystemTemporaryFileStorageTest {
     assertThat(Files.size(temporaryDirectory.resolve(JOB_ID + ".csv"))).isEqualTo(128);
   }
 
+  @Test
+  void shouldDeleteStoredFileByItsInternalKey() throws IOException {
+    FileSystemTemporaryFileStorage storage = new FileSystemTemporaryFileStorage(
+        temporaryDirectory
+    );
+    StoredTemporaryFile storedFile = storage.store(
+        JOB_ID,
+        new TrackingGeneratedInputStream(128)
+    );
+
+    storage.delete(storedFile.storageKey());
+
+    assertThat(temporaryDirectory.resolve(storedFile.storageKey())).doesNotExist();
+  }
+
   private static final class TrackingGeneratedInputStream extends InputStream {
 
     private long remainingBytes;
