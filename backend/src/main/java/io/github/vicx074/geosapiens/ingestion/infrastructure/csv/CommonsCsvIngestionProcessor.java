@@ -6,6 +6,7 @@ import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowConsume
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowError;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvTransactionRow;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.IngestionCsvProcessor;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.config.CsvIngestionProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -37,6 +38,14 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
       .setIgnoreEmptyLines(false)
       .build();
 
+  private final int maxRecordCharacters;
+
+  public CommonsCsvIngestionProcessor(CsvIngestionProperties properties) {
+    this.maxRecordCharacters = Objects.requireNonNull(
+        properties,
+        "As propriedades de ingestão CSV são obrigatórias.").maxRecordCharacters();
+  }
+
   @Override
   public CsvProcessingSummary process(InputStream content, CsvRowConsumer consumer) throws IOException {
     Objects.requireNonNull(content, "O conteúdo CSV é obrigatório.");
@@ -45,34 +54,44 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
     long acceptedRows = 0;
     long rejectedRows = 0;
 
-    try (Reader reader = utf8Reader(content);
+    try (Reader reader = boundedUtf8Reader(content);
          CSVParser parser = CSVParser.parse(reader, FORMAT)) {
       validateHeader(parser.getHeaderNames());
 
-      try {
-        for (CSVRecord record : parser) {
-          RowValidation validation = validate(record);
-          if (validation.accepted() != null) {
-            consumer.accepted(validation.accepted());
-            acceptedRows = Math.addExact(acceptedRows, 1);
-          } else {
-            consumer.rejected(validation.rejected());
-            rejectedRows = Math.addExact(rejectedRows, 1);
-          }
+      for (CSVRecord record : parser) {
+        RowValidation validation = validate(record);
+        if (validation.accepted() != null) {
+          consumer.accepted(validation.accepted());
+          acceptedRows = Math.addExact(acceptedRows, 1);
+        } else {
+          consumer.rejected(validation.rejected());
+          rejectedRows = Math.addExact(rejectedRows, 1);
         }
-      } catch (UncheckedIOException exception) {
-        throw exception.getCause();
       }
+    } catch (CsvRecordTooLargeException exception) {
+      throw invalidOversizedRecord(exception);
+    } catch (UncheckedIOException exception) {
+      IOException cause = exception.getCause();
+      if (cause instanceof CsvRecordTooLargeException tooLarge) {
+        throw invalidOversizedRecord(tooLarge);
+      }
+      throw cause;
     }
 
     return new CsvProcessingSummary(acceptedRows, rejectedRows);
   }
 
-  private static Reader utf8Reader(InputStream content) {
+  private Reader boundedUtf8Reader(InputStream content) {
     var decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT);
-    return new InputStreamReader(content, decoder);
+    Reader decoded = new InputStreamReader(content, decoder);
+    return new CsvRecordLengthLimitingReader(decoded, maxRecordCharacters);
+  }
+
+  private static InvalidCsvFileException invalidOversizedRecord(
+      CsvRecordTooLargeException exception) {
+    return new InvalidCsvFileException(exception.getMessage(), exception);
   }
 
   private static void validateHeader(List<String> actualHeader) {
@@ -116,6 +135,9 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
     }
     if (amount.scale() != 2) {
       return rejected(sourceRow, "AMOUNT_SCALE_INVALID", "amount deve possuir duas casas decimais.");
+    }
+    if (amount.precision() > 19) {
+      return rejected(sourceRow, "AMOUNT_PRECISION_INVALID", "amount excede a precisão NUMERIC(19,2).");
     }
     if (amount.compareTo(BigDecimal.ZERO) == 0) {
       return rejected(sourceRow, "AMOUNT_ZERO", "amount deve ser diferente de zero.");

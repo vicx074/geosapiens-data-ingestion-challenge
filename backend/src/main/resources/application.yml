@@ -29,6 +29,8 @@ spring:
 app:
   storage:
     temporary-directory: ${TEMPORARY_STORAGE_DIRECTORY}
+  csv:
+    max-record-characters: ${CSV_MAX_RECORD_CHARACTERS:4096}
   messaging:
     ingestion-exchange: ${RABBITMQ_INGESTION_EXCHANGE}
     ingestion-queue: ${RABBITMQ_INGESTION_QUEUE}
