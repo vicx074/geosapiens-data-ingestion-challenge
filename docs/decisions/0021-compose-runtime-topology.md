@@ -48,6 +48,8 @@ O processo Java não permanece como `root`. Esse pequeno passo de bootstrap tamb
 
 PostgreSQL e RabbitMQ usam volumes nomeados próprios e health checks. Os serviços de backend só iniciam depois que suas dependências estão saudáveis.
 
+O healthcheck do RabbitMQ executa `rabbitmq-diagnostics` explicitamente como o usuário `rabbitmq` usando `su-exec`. O motivo é evitar uma corrida durante o primeiro boot: comandos CLI executados como `root` podem criar `/var/lib/rabbitmq/.erlang.cookie` antes do broker, deixando o cookie ilegível quando o servidor já estiver rodando com privilégios reduzidos. O healthcheck precisa observar o broker, não alterar ownership do segredo de distribuição Erlang.
+
 As versões usadas no Compose acompanham as versões já exercitadas nos testes de integração quando aplicável. Alta disponibilidade continua fora do escopo.
 
 ### Frontend e proxy
@@ -94,6 +96,10 @@ Rejeitado para a entrega padrão. Embora o código seja um monólito modular, o 
 
 Rejeitado. Apesar de API e Worker usarem o mesmo Dockerfile, pedir ao Compose que ambos construam e exportem `geosapiens-backend:local` pode gerar corrida de exportação em algumas implementações do Docker Desktop. Um único build reutilizado pelas duas funções preserva exatamente a mesma imagem e é mais determinístico.
 
+### Healthcheck RabbitMQ como `root`
+
+Rejeitado. O processo principal do broker reduz privilégios para o usuário `rabbitmq`, enquanto comandos CLI executados como `root` podem disputar a criação do Erlang cookie no primeiro boot. Executar o diagnóstico com o mesmo usuário do broker evita que um healthcheck introduza uma falha de permissão no próprio serviço que deveria apenas observar.
+
 ### Dois projetos Spring independentes
 
 Rejeitado. Duplicaria build, configuração e regras sem necessidade do desafio.
@@ -129,4 +135,4 @@ Spring Boot Worker -> PostgreSQL
 Spring Boot Worker -> cleanup do volume
 ```
 
-A propriedade de um único build da imagem e o entrypoint são detalhes internos de empacotamento; não criam serviço nem fluxo arquitetural novo. A topologia permanece a mesma.
+A propriedade de um único build da imagem, o healthcheck executado como o usuário do broker e o entrypoint são detalhes internos de empacotamento; não criam serviço nem fluxo arquitetural novo. A topologia permanece a mesma.
