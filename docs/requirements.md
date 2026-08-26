@@ -7,16 +7,16 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R01 | Obrigatório | Backend Java com Spring Boot | Aplicação Spring Boot containerizada | Build e teste de inicialização |
 | R02 | Obrigatório | Frontend React | Aplicação React containerizada | Build e teste de interface |
 | R03 | Obrigatório | CSV com mais de 1 milhão de linhas | Gerador determinístico versionado | Contagem e checksum dos parâmetros |
-| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco e cópia com buffer fixo; leitura progressiva no Worker | Teste com stream gerado e benchmark |
-| R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker ainda pendente | Teste de contrato e integração |
+| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco e cópia com buffer fixo; Worker com parser CSV progressivo | Testes de storage/parser e benchmark |
+| R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker RabbitMQ com concorrência e prefetch limitados | Testes de contrato, parser, listener e integração |
 | R06 | Obrigatório | Batch insert | JDBC batch com tamanho configurável | Teste de integração e benchmark |
-| R07 | Obrigatório | Status e erros | Endpoint com contadores persistidos | Testes de estados e contrato |
+| R07 | Obrigatório | Status e erros | Job já mantém contadores; endpoint e persistência dos erros por linha ainda pendentes | Testes de estados e contrato |
 | R08 | Obrigatório | Paginação eficiente | Paginação por cursor | Plano de execução e teste de continuidade |
 | R09 | Obrigatório | Agregação otimizada | SQL no PostgreSQL | Resultado, latência e plano de execução |
 | R10 | Obrigatório | Índices adequados | Índices derivados das consultas reais | Migração e `EXPLAIN ANALYZE` |
 | R11 | Obrigatório | Interface responsiva | Paginação server-side e lista virtualizada | Teste de interface e inspeção do DOM |
 | R12 | Obrigatório | Execução plug-and-play | Docker Compose e variáveis documentadas | Execução limpa de `docker compose up` |
-| D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho | Testes de redelivery e DLQ |
+| D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho com ACK manual, redelivery limitado e DLQ | Testes de ACK, redelivery e DLQ |
 | S01 | Decisão | Atualização de status | Polling | Teste da interrupção em estado terminal |
 | S02 | Decisão | Evitar duplicação | Chave única por importação e linha | Teste de reprocessamento |
 | S03 | Decisão | Armazenamento intermediário | Volume Docker temporário | Teste entre API e Worker |

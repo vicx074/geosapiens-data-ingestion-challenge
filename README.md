@@ -2,7 +2,7 @@
 
 Solução para ingestão, processamento e consulta de arquivos CSV com mais de um milhão de registros, sem carregar o arquivo completo em memória.
 
-O projeto está em construção incremental. O primeiro marco define requisitos, decisões arquiteturais e critérios de validação antes da implementação.
+O projeto está em construção incremental. Cada marco mantém as decisões e limitações atuais documentadas antes de avançar para o próximo requisito.
 
 ## Objetivos verificáveis
 
@@ -37,6 +37,10 @@ No Windows:
 cd backend
 .\mvnw.cmd test
 ```
+
+O Worker já consome jobs do RabbitMQ com concorrência e prefetch limitados, abre o CSV pelo identificador do job e percorre o conteúdo progressivamente com Apache Commons CSV. O cabeçalho e o contrato das linhas são validados durante a leitura; linhas inválidas incrementam rejeições sem materializar o arquivo inteiro. Falhas transitórias recebem uma tentativa por redelivery antes do envio à DLQ.
+
+Neste marco incremental, o Worker persiste o estado final e os contadores do job, mas ainda não persiste as transações válidas nem os detalhes dos erros por linha. Essa persistência em batches é o próximo marco e utilizará os eventos de linha já produzidos pelo parser.
 
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 

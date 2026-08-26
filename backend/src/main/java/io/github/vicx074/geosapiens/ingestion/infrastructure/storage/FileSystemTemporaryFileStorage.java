@@ -1,6 +1,7 @@
 package io.github.vicx074.geosapiens.ingestion.infrastructure.storage;
 
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
+import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 import io.github.vicx074.geosapiens.ingestion.application.port.out.StoredTemporaryFile;
@@ -34,7 +35,7 @@ public final class FileSystemTemporaryFileStorage implements TemporaryFileStorag
 
     Files.createDirectories(baseDirectory);
 
-    String storageKey = jobId + ".csv";
+    String storageKey = storageKey(jobId);
     Path finalFile = baseDirectory.resolve(storageKey);
     ensureFinalFileDoesNotExist(finalFile);
 
@@ -52,6 +53,12 @@ public final class FileSystemTemporaryFileStorage implements TemporaryFileStorag
   }
 
   @Override
+  public InputStream open(UUID jobId) throws IOException {
+    Objects.requireNonNull(jobId, "O identificador do job é obrigatório.");
+    return Files.newInputStream(baseDirectory.resolve(storageKey(jobId)), READ);
+  }
+
+  @Override
   public void delete(String storageKey) throws IOException {
     if (storageKey == null || storageKey.isBlank()) {
       throw new IllegalArgumentException("A chave de armazenamento é obrigatória.");
@@ -62,6 +69,10 @@ public final class FileSystemTemporaryFileStorage implements TemporaryFileStorag
       throw new IllegalArgumentException("A chave de armazenamento é inválida.");
     }
     Files.deleteIfExists(file);
+  }
+
+  private static String storageKey(UUID jobId) {
+    return jobId + ".csv";
   }
 
   private static long copyWithBoundedMemory(InputStream content, Path partialFile) throws IOException {

@@ -33,6 +33,13 @@ app:
     ingestion-exchange: ${RABBITMQ_INGESTION_EXCHANGE}
     ingestion-queue: ${RABBITMQ_INGESTION_QUEUE}
     ingestion-routing-key: ${RABBITMQ_INGESTION_ROUTING_KEY}
+    ingestion-dead-letter-exchange: ${RABBITMQ_INGESTION_DLX:ingestion.jobs.dlx}
+    ingestion-dead-letter-queue: ${RABBITMQ_INGESTION_DLQ:ingestion.jobs.dead}
+    ingestion-dead-letter-routing-key: ${RABBITMQ_INGESTION_DEAD_LETTER_ROUTING_KEY:ingestion.dead}
+  worker:
+    enabled: ${WORKER_ENABLED:false}
+    concurrency: ${WORKER_CONCURRENCY:2}
+    prefetch: ${WORKER_PREFETCH:1}
   outbox:
     enabled: ${OUTBOX_PUBLISHER_ENABLED}
     poll-interval: ${OUTBOX_POLL_INTERVAL}
