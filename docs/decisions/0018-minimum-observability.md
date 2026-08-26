@@ -27,6 +27,8 @@ Os logs de console usam o formato estruturado Logstash suportado nativamente pel
 
 Nenhum valor financeiro, categoria de transação ou conteúdo bruto de CSV é colocado nos logs de processamento.
 
+A escrita de métricas é *best effort*. Se o `MeterRegistry` falhar, a exceção é absorvida pelo adapter de observabilidade e registrada em log; telemetria não pode transformar um processamento bem-sucedido em redelivery, nem alterar ACK, DLQ ou estado persistido.
+
 ## Por que medir a entrega no adapter RabbitMQ
 
 A duração observada representa o trabalho feito entre o recebimento da mensagem e a decisão de ACK, redelivery ou DLQ. Essa fronteira corresponde ao comportamento operacional do Worker e já está na camada de infraestrutura, portanto não exige que domínio ou aplicação conheçam Micrometer.
@@ -45,7 +47,8 @@ Isso permite agregar taxas de ACK, redelivery e DLQ sem criar uma série tempora
 - usar `jobId` como tag: cardinalidade não limitada;
 - métricas apenas de HTTP: não mostram o Worker assíncrono;
 - logs apenas em texto livre: dificultam correlação e extração de campos;
-- instrumentar domínio ou casos de uso com Micrometer: viola a direção de dependências da Clean Architecture adotada.
+- instrumentar domínio ou casos de uso com Micrometer: viola a direção de dependências da Clean Architecture adotada;
+- deixar falhas de telemetria propagarem para o listener: observabilidade não pode modificar semântica de processamento.
 
 ## Consequências
 
