@@ -16,6 +16,8 @@ A implementação do Compose deve materializar essa topologia sem transformar AP
 
 `backend-api` e `backend-worker` usam a mesma imagem Spring Boot e o mesmo código do monólito modular.
 
+Somente `backend-api` declara o `build` da imagem `geosapiens-backend:local`. O Worker referencia essa imagem já construída e usa `pull_policy: never`. Essa configuração evita que implementações do Docker Compose tentem exportar em paralelo dois builds idênticos para a mesma tag — comportamento observado no Docker Desktop para Windows — sem duplicar imagem, código ou etapa arquitetural.
+
 A API executa com:
 
 - `WORKER_ENABLED=false`;
@@ -88,6 +90,10 @@ Esse smoke test valida integração e empacotamento, mas não substitui o benchm
 
 Rejeitado para a entrega padrão. Embora o código seja um monólito modular, o System Design representa funções de execução distintas e o volume temporário já permite separar recebimento e consumo sem duplicar regras.
 
+### Dois builds concorrentes para a mesma tag local
+
+Rejeitado. Apesar de API e Worker usarem o mesmo Dockerfile, pedir ao Compose que ambos construam e exportem `geosapiens-backend:local` pode gerar corrida de exportação em algumas implementações do Docker Desktop. Um único build reutilizado pelas duas funções preserva exatamente a mesma imagem e é mais determinístico.
+
 ### Dois projetos Spring independentes
 
 Rejeitado. Duplicaria build, configuração e regras sem necessidade do desafio.
@@ -123,4 +129,4 @@ Spring Boot Worker -> PostgreSQL
 Spring Boot Worker -> cleanup do volume
 ```
 
-O entrypoint é detalhe interno da imagem e não cria um serviço ou fluxo arquitetural novo. A topologia permanece a mesma.
+A propriedade de um único build da imagem e o entrypoint são detalhes internos de empacotamento; não criam serviço nem fluxo arquitetural novo. A topologia permanece a mesma.
