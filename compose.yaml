@@ -49,7 +49,8 @@ services:
       RABBITMQ_DEFAULT_USER: geosapiens
       RABBITMQ_DEFAULT_PASS: geosapiens_local
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # O CLI deve usar o mesmo usuário do broker para não criar o Erlang cookie como root durante o boot.
+      test: ["CMD-SHELL", "su-exec rabbitmq rabbitmq-diagnostics -q ping"]
       interval: 5s
       timeout: 5s
       retries: 20
