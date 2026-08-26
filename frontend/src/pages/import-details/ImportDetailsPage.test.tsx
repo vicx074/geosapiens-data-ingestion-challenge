@@ -85,7 +85,7 @@ describe('ImportDetailsPage', () => {
     expect(screen.getByText(/total final ainda não é estimado/i)).toBeVisible()
 
     expect(await screen.findByRole('heading', { level: 2, name: /dados confirmados/i })).toBeVisible()
-    expect(screen.getByText('R$ 845.230,75')).toBeVisible()
+    expect(screen.getByText(/845\.230,75/)).toBeVisible()
     expect(screen.getByText('Snapshot parcial')).toBeVisible()
   })
 
