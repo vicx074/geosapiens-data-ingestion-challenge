@@ -6,12 +6,14 @@ import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowConsume
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowError;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvTransactionRow;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.IngestionCsvProcessor;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.config.CsvIngestionProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -20,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
+import org.apache.commons.csv.CSVException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -37,6 +40,14 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
       .setIgnoreEmptyLines(false)
       .build();
 
+  private final int maxRecordCharacters;
+
+  public CommonsCsvIngestionProcessor(CsvIngestionProperties properties) {
+    this.maxRecordCharacters = Objects.requireNonNull(
+        properties,
+        "As propriedades de ingestão CSV são obrigatórias.").maxRecordCharacters();
+  }
+
   @Override
   public CsvProcessingSummary process(InputStream content, CsvRowConsumer consumer) throws IOException {
     Objects.requireNonNull(content, "O conteúdo CSV é obrigatório.");
@@ -45,34 +56,71 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
     long acceptedRows = 0;
     long rejectedRows = 0;
 
-    try (Reader reader = utf8Reader(content);
+    try (Reader reader = boundedUtf8Reader(content);
          CSVParser parser = CSVParser.parse(reader, FORMAT)) {
       validateHeader(parser.getHeaderNames());
 
-      try {
-        for (CSVRecord record : parser) {
-          RowValidation validation = validate(record);
-          if (validation.accepted() != null) {
-            consumer.accepted(validation.accepted());
-            acceptedRows = Math.addExact(acceptedRows, 1);
-          } else {
-            consumer.rejected(validation.rejected());
-            rejectedRows = Math.addExact(rejectedRows, 1);
-          }
+      for (CSVRecord record : parser) {
+        RowValidation validation = validate(record);
+        if (validation.accepted() != null) {
+          consumer.accepted(validation.accepted());
+          acceptedRows = Math.addExact(acceptedRows, 1);
+        } else {
+          consumer.rejected(validation.rejected());
+          rejectedRows = Math.addExact(rejectedRows, 1);
         }
-      } catch (UncheckedIOException exception) {
-        throw exception.getCause();
       }
+    } catch (CsvRecordTooLargeException exception) {
+      throw invalidOversizedRecord(exception);
+    } catch (CSVException exception) {
+      throw invalidCsvSyntax(exception);
+    } catch (CharacterCodingException exception) {
+      throw invalidUtf8(exception);
+    } catch (UncheckedIOException exception) {
+      throw classifyReadFailure(exception.getCause());
     }
 
     return new CsvProcessingSummary(acceptedRows, rejectedRows);
   }
 
-  private static Reader utf8Reader(InputStream content) {
+  private Reader boundedUtf8Reader(InputStream content) {
     var decoder = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT);
-    return new InputStreamReader(content, decoder);
+    Reader decoded = new InputStreamReader(content, decoder);
+    return new CsvRecordLengthLimitingReader(decoded, maxRecordCharacters);
+  }
+
+  private static IOException classifyReadFailure(IOException cause) {
+    // Falhas provocadas pelo próprio conteúdo são definitivas e não devem consumir retry do broker;
+    // somente I/O externo permanece como falha transitória para a política de redelivery do Worker.
+    if (cause instanceof CsvRecordTooLargeException tooLarge) {
+      throw invalidOversizedRecord(tooLarge);
+    }
+    if (cause instanceof CSVException csvException) {
+      throw invalidCsvSyntax(csvException);
+    }
+    if (cause instanceof CharacterCodingException codingException) {
+      throw invalidUtf8(codingException);
+    }
+    return cause;
+  }
+
+  private static InvalidCsvFileException invalidOversizedRecord(
+      CsvRecordTooLargeException exception) {
+    return new InvalidCsvFileException(exception.getMessage(), exception);
+  }
+
+  private static InvalidCsvFileException invalidCsvSyntax(CSVException exception) {
+    return new InvalidCsvFileException(
+        "Conteúdo CSV sintaticamente inválido.",
+        exception);
+  }
+
+  private static InvalidCsvFileException invalidUtf8(CharacterCodingException exception) {
+    return new InvalidCsvFileException(
+        "O arquivo CSV deve possuir codificação UTF-8 válida.",
+        exception);
   }
 
   private static void validateHeader(List<String> actualHeader) {
@@ -116,6 +164,9 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
     }
     if (amount.scale() != 2) {
       return rejected(sourceRow, "AMOUNT_SCALE_INVALID", "amount deve possuir duas casas decimais.");
+    }
+    if (amount.precision() > 19) {
+      return rejected(sourceRow, "AMOUNT_PRECISION_INVALID", "amount excede a precisão NUMERIC(19,2).");
     }
     if (amount.compareTo(BigDecimal.ZERO) == 0) {
       return rejected(sourceRow, "AMOUNT_ZERO", "amount deve ser diferente de zero.");

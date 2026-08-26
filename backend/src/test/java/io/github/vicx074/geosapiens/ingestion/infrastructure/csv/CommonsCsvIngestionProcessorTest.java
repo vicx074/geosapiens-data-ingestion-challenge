@@ -7,7 +7,9 @@ import io.github.vicx074.geosapiens.ingestion.application.InvalidCsvFileExceptio
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowConsumer;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvRowError;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.CsvTransactionRow;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.config.CsvIngestionProperties;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +19,10 @@ import org.junit.jupiter.api.Test;
 
 class CommonsCsvIngestionProcessorTest {
 
-  private final CommonsCsvIngestionProcessor processor = new CommonsCsvIngestionProcessor();
+  private static final int MAX_RECORD_CHARACTERS = 4_096;
+
+  private final CommonsCsvIngestionProcessor processor =
+      new CommonsCsvIngestionProcessor(new CsvIngestionProperties(MAX_RECORD_CHARACTERS));
 
   @Test
   void shouldStreamAndValidateRowsWithoutBreakingQuotedCsvFields() throws IOException {
@@ -54,6 +59,77 @@ class CommonsCsvIngestionProcessorTest {
             new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
             CsvRowConsumer.DISCARDING))
         .withMessageContaining("Cabeçalho CSV inválido");
+  }
+
+  @Test
+  void shouldRejectSyntacticallyMalformedCsvWithoutTreatingItAsInfrastructureFailure() {
+    String csv = "transaction_id,occurred_at,amount,category\n"
+        + "txn-0001,2025-01-02T03:04:05Z,10.50,\"categoria sem fechamento\n";
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("sintaticamente inválido");
+  }
+
+  @Test
+  void shouldRejectMalformedUtf8AsInvalidInput() throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    bytes.write("transaction_id,occurred_at,amount,category\n"
+        .getBytes(StandardCharsets.UTF_8));
+    bytes.write(new byte[] {(byte) 0xC3, 0x28});
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(bytes.toByteArray()),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("UTF-8 válida");
+  }
+
+  @Test
+  void shouldRejectOversizedLogicalRecordBeforeParserMaterializesIt() {
+    String oversizedCategory = "x".repeat(MAX_RECORD_CHARACTERS + 1);
+    String csv = "transaction_id,occurred_at,amount,category\n"
+        + "txn-0001,2025-01-02T03:04:05Z,10.50," + oversizedCategory + "\n";
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("registro CSV 2")
+        .withMessageContaining("4096 caracteres");
+  }
+
+  @Test
+  void shouldCountQuotedMultilineContentAsOneLogicalRecord() {
+    String multilineCategory = ("trecho\n").repeat(800);
+    String csv = "transaction_id,occurred_at,amount,category\n"
+        + "txn-0001,2025-01-02T03:04:05Z,10.50,\"" + multilineCategory + "\"\n";
+
+    assertThatExceptionOfType(InvalidCsvFileException.class)
+        .isThrownBy(() -> processor.process(
+            new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)),
+            CsvRowConsumer.DISCARDING))
+        .withMessageContaining("registro CSV 2");
+  }
+
+  @Test
+  void shouldRejectAmountThatDoesNotFitDatabasePrecision() throws IOException {
+    String csv = """
+        transaction_id,occurred_at,amount,category
+        txn-0001,2025-01-02T03:04:05Z,123456789012345678.90,transporte
+        """;
+    CollectingConsumer consumer = new CollectingConsumer();
+
+    var summary = processor.process(
+        new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)), consumer);
+
+    assertThat(summary.acceptedRows()).isZero();
+    assertThat(summary.rejectedRows()).isEqualTo(1);
+    assertThat(consumer.rejected)
+        .extracting(CsvRowError::code)
+        .containsExactly("AMOUNT_PRECISION_INVALID");
   }
 
   @Test

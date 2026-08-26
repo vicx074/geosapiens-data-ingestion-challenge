@@ -26,9 +26,22 @@ spring:
       pool:
         size: 1
 
+logging:
+  structured:
+    format:
+      console: ${CONSOLE_LOG_STRUCTURED_FORMAT:logstash}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
 app:
   storage:
     temporary-directory: ${TEMPORARY_STORAGE_DIRECTORY}
+  csv:
+    max-record-characters: ${CSV_MAX_RECORD_CHARACTERS:4096}
   messaging:
     ingestion-exchange: ${RABBITMQ_INGESTION_EXCHANGE}
     ingestion-queue: ${RABBITMQ_INGESTION_QUEUE}
