@@ -1,5 +1,9 @@
 import { requestJson } from '../../../shared/api/http-client'
-import type { AcceptedIngestionResponse, IngestionStatusResponse } from '../model/imports'
+import type {
+  AcceptedIngestionResponse,
+  IngestionAnalyticsResponse,
+  IngestionStatusResponse,
+} from '../model/imports'
 
 export function buildImportFormData(file: File) {
   const formData = new FormData()
@@ -17,6 +21,12 @@ export async function createImport(file: File, signal?: AbortSignal) {
 
 export function getImportStatus(jobId: string, signal?: AbortSignal) {
   return requestJson<IngestionStatusResponse>(`/imports/${encodeURIComponent(jobId)}`, {
+    signal,
+  })
+}
+
+export function getImportAnalytics(jobId: string, signal?: AbortSignal) {
+  return requestJson<IngestionAnalyticsResponse>(`/imports/${encodeURIComponent(jobId)}/analytics`, {
     signal,
   })
 }
