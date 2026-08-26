@@ -1,5 +1,5 @@
 import { HttpResponse, http } from 'msw'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
@@ -74,9 +74,13 @@ describe('ImportDetailsPage', () => {
     renderDetails()
 
     expect(await screen.findByText('Processando')).toBeVisible()
-    expect(screen.getByText('12.450')).toBeVisible()
-    expect(screen.getByText('12.300')).toBeVisible()
-    expect(screen.getByText('150')).toBeVisible()
+
+    // O mesmo total aceito também aparece no snapshot de analytics. Delimitar a região de status
+    // garante que este teste continue validando o contrato dos contadores, e não uma coincidência textual.
+    const counters = screen.getByLabelText('Contadores confirmados da importação')
+    expect(within(counters).getByText('12.450')).toBeVisible()
+    expect(within(counters).getByText('12.300')).toBeVisible()
+    expect(within(counters).getByText('150')).toBeVisible()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getByText(/total final ainda não é estimado/i)).toBeVisible()
 
