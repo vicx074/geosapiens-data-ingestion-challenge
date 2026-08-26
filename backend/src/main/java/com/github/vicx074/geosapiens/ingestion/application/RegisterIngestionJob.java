@@ -27,6 +27,7 @@ public final class RegisterIngestionJob {
 
   public IngestionJob execute(UUID jobId, String originalFilename, Instant receivedAt) {
     IngestionJob job = IngestionJob.receive(jobId, originalFilename, receivedAt);
+    job.markQueued(receivedAt);
     PendingJobPublication publication = new PendingJobPublication(jobId, receivedAt);
 
     return transactions.required(() -> {

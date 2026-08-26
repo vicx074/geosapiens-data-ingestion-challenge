@@ -11,15 +11,21 @@ Publisher confirms informam que o RabbitMQ aceitou uma publicação, mas não to
 
 ## Decisão
 
-Gravar o job e uma entrada do Outbox na mesma transação do PostgreSQL. Como existe somente uma solicitação inicial de processamento por job, `job_id` também será a chave da entrada. Ela conterá instante de criação, quantidade de tentativas, próxima tentativa, último erro e estado da publicação.
+Gravar o job em `QUEUED` e uma entrada do Outbox na mesma transação do PostgreSQL. Nesse contexto, `QUEUED` significa que a solicitação assíncrona está durável e apta a ser despachada, não que o broker já confirmou a mensagem. Como existe somente uma solicitação inicial de processamento por job, `job_id` também será a chave da entrada. Ela conterá instante de criação, quantidade de tentativas, próxima tentativa, último erro e estado da publicação.
 
 Um publicador interno da função API buscará um lote limitado de entradas disponíveis e publicará mensagens persistentes no RabbitMQ. Cada mensagem conterá somente `jobId`; o caminho temporário continuará derivado desse identificador e não será duplicado no broker.
 
 O publicador usará `mandatory` e publisher confirms correlacionados. Uma entrada somente será marcada como publicada depois de confirmação positiva e ausência de retorno por rota inexistente. Falhas terão tentativa, motivo resumido e próximo instante persistidos. Depois do limite configurado, o Outbox e o job serão encerrados como falha.
 
+O motivo persistido será limitado a 1.000 caracteres. Esse limite preserva diagnóstico suficiente sem permitir que mensagens de exceção façam o estado operacional crescer sem controle.
+
 A seleção de entradas usará ordem estável e `FOR UPDATE SKIP LOCKED` em transação curta. Isso limita o lote e evita que publicadores concorrentes reivindiquem a mesma entrada. O lock não permanecerá aberto durante a espera pelo RabbitMQ; a entrada será primeiro marcada com uma reivindicação temporária recuperável.
 
 O envio permanece pelo menos uma vez. Se o processo cair depois da confirmação do RabbitMQ e antes de marcar o Outbox, a mensagem poderá ser publicada novamente. O Worker deverá tratar `jobId` e `(import_id, source_row)` de forma idempotente.
+
+O job já estará em `QUEUED` antes que a mensagem fique visível ao Worker. Marcar esse estado somente depois do publisher confirm criaria uma corrida em que o consumidor encontraria o job ainda como `RECEIVED`.
+
+Os testes de integração e o futuro Docker Compose usarão a imagem oficial `rabbitmq:4.3.5-alpine`, fixada em uma versão coberta pelo suporte comunitário no momento da decisão. Tags móveis como `latest` não serão usadas.
 
 ## Alternativas rejeitadas
 

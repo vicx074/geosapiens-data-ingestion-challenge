@@ -1,0 +1,20 @@
+spring:
+  rabbitmq:
+    addresses: localhost:5672
+    username: guest
+    password: guest
+
+app:
+  messaging:
+    ingestion-exchange: ingestion.jobs
+    ingestion-queue: ingestion.jobs.process
+    ingestion-routing-key: ingestion.process
+  outbox:
+    enabled: false
+    poll-interval: 1s
+    batch-size: 10
+    claim-duration: 51s
+    confirm-timeout: 5s
+    max-attempts: 3
+    initial-retry-delay: 1s
+    max-retry-delay: 10s
