@@ -68,9 +68,15 @@ public final class RabbitIngestionJobListener {
       failJob.execute(jobId, failureReason(exception));
     } catch (RuntimeException failureUpdateException) {
       exception.addSuppressed(failureUpdateException);
-      LOGGER.error("Não foi possível registrar a falha definitiva do job {}; mensagem será reenfileirada.",
-          jobId, exception);
-      channel.basicNack(deliveryTag, false, true);
+
+      // O orçamento de retry já foi consumido. Reenfileirar outra vez pode criar um loop quente
+      // justamente quando o PostgreSQL está indisponível; a DLQ preserva a mensagem para reconciliação.
+      LOGGER.error(
+          "Não foi possível registrar a falha definitiva do job {}; mensagem será enviada para a DLQ "
+              + "para evitar redelivery sem limite. O estado do job pode exigir reconciliação.",
+          jobId,
+          exception);
+      channel.basicReject(deliveryTag, false);
       return;
     }
 
