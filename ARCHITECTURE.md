@@ -114,13 +114,64 @@ O dashboard usa `GROUPING SETS` em uma única instrução para obter total, cate
 
 ## Frontend
 
-Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem conexões persistentes. `GET /imports/{id}` lê o estado durável do job e não mantém progresso paralelo em memória. A resposta inclui `processedRows`, `acceptedRows` e `rejectedRows`; percentual só será exibido se o total de linhas puder ser obtido de forma durável sem uma passagem adicional injustificada pelo arquivo.
+O frontend será uma SPA em **React + TypeScript + Vite**. React permanece um único componente do System Design; as bibliotecas abaixo são detalhes internos e não criam novos serviços ou fluxos externos.
+
+A organização será feature-first leve: `app/pages` coordenam navegação, `features/imports` concentra o caso de uso da importação e `shared` contém primitives e infraestrutura reutilizável sem conhecer regras específicas de importação. O objetivo é separar componentes visuais, acesso remoto e regras de apresentação sem reproduzir camadas do backend artificialmente no React.
+
+### Upload
+
+O navegador envia o arquivo CSV como um único `multipart/form-data` para `POST /imports`. O frontend não carrega o conteúdo completo com `FileReader`, não converte milhões de linhas para JSON/Base64 e não implementa chunking de aplicação.
+
+Essa decisão mantém o System Design: o cliente entrega o arquivo e o backend é responsável pelo streaming para storage e pelo processamento assíncrono em batches. Chunking no browser exigiria protocolo adicional de ordenação, idempotência, remontagem e finalização sem requisito correspondente.
+
+Não haverá retry automático cego do upload. Se a conexão cair depois de o backend aceitar o arquivo, repetir o `POST` poderia criar outro job. Retry automático só será reconsiderado com um contrato explícito de idempotência para o upload.
+
+### Estado remoto e estado visual
+
+**SWR** gerenciará o estado proveniente da API:
+
+- status;
+- analytics;
+- páginas de transações;
+- páginas de erros.
+
+Estado puramente visual permanece local ao React. Redux e Zustand não entram no primeiro escopo porque não existe estado global complexo que os justifique.
+
+Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem conexões persistentes. `GET /imports/{id}` lê o estado durável do job; o SWR revalida periodicamente enquanto `terminal=false` e interrompe o polling ao alcançar estado terminal.
+
+A resposta inclui `processedRows`, `acceptedRows` e `rejectedRows`; percentual só será exibido se o total de linhas puder ser obtido de forma durável sem uma passagem adicional injustificada pelo arquivo.
+
+### Dashboard
+
+`GET /imports/{id}/analytics` entrega os totais do dashboard sem transportar registros individuais para a aplicação. O React não recalcula categoria ou mês percorrendo páginas de transações.
+
+Durante o processamento, a resposta representa um snapshot consistente dos lotes já commitados; o estado terminal continua pertencendo ao endpoint de status.
+
+### Paginação e virtualização
 
 O status não carrega detalhes de todos os erros. `GET /imports/{id}/errors` usa paginação por cursor para que cada resposta permaneça limitada, inclusive quando o CSV produz muitas rejeições.
 
-`GET /imports/{id}/transactions` também usa paginação por cursor. Paginação server-side limita transferência e trabalho do banco; a virtualização do React limitará separadamente os elementos montados no DOM. As duas técnicas resolvem problemas diferentes e serão usadas em conjunto na lista principal.
+`GET /imports/{id}/transactions` também usa paginação por cursor. A paginação server-side limita banco, transferência e memória JavaScript; **TanStack Virtual** limitará separadamente quantas linhas ficam montadas no DOM.
 
-`GET /imports/{id}/analytics` entrega os totais do dashboard sem transportar registros individuais para a aplicação. Durante o processamento, a resposta representa um snapshot consistente dos lotes já commitados; o estado terminal continua pertencendo ao endpoint de status.
+Não será usado infinite scroll sem limite acumulando todas as páginas visitadas. A UI mantém um conjunto limitado de registros e histórico mínimo de cursores para navegação. Virtualizar o DOM não seria suficiente se a aplicação mantivesse milhões de objetos carregados em memória.
+
+TanStack Table não entra inicialmente porque não há necessidade concreta de uma engine cliente para filtros, ordenação e estado avançado de colunas.
+
+### Rotas e recuperação de contexto
+
+React Router será usado para navegação da SPA. A importação corrente vive em `/imports/:id`, de modo que refresh ou acesso direto preservem o identificador e permitam reconstruir a tela a partir do estado remoto.
+
+### Renderização, UX e acessibilidade
+
+O frontend é uma interface operacional de dados, não uma landing page. A prioridade é clareza operacional, velocidade de uso, hierarquia, estados/feedback, consistência, acessibilidade e movimento discreto.
+
+Cada fluxo relevante deverá tratar estados aplicáveis de loading, success, warning, error, empty, no-results, falha de conexão e conteúdo parcial. A interface não será considerada pronta apenas porque o caminho ideal funciona.
+
+A tabela não deve renderizar milhares de linhas simultaneamente; responsividade não significa comprimir todas as colunas desktop até ficarem ilegíveis. Em telas pequenas, conteúdo será reordenado conforme prioridade.
+
+HTML semântico, foco visível, navegação por teclado, labels, contraste adequado, estados que não dependam apenas de cor e `prefers-reduced-motion` fazem parte da implementação, não de um ajuste posterior.
+
+As decisões técnicas estão no ADR 0019 e os critérios visuais/UX em `docs/frontend-design.md`.
 
 ## Observabilidade mínima
 
@@ -139,4 +190,4 @@ Telemetria é *best effort*: falhar ao registrar uma métrica não pode modifica
 
 A solução oferece recuperação de falhas na camada de processamento assíncrono por meio de mensagens persistentes, confirmação manual, redelivery, tentativas limitadas e DLQ no RabbitMQ. A alta disponibilidade da API, do PostgreSQL, do broker e do armazenamento temporário não faz parte deste desafio.
 
-Também ficam fora do escopo inicial Kafka, Redis, Kubernetes, WebSocket, object storage e divisão de um mesmo arquivo entre Workers. Essas opções devem ser reconsideradas apenas diante de requisitos que necessitem de suas propriedades.
+Também ficam fora do escopo inicial Kafka, Redis, Kubernetes, WebSocket, object storage, divisão de um mesmo arquivo entre Workers, upload em chunks no browser, Redux/Zustand e TanStack Query/Table sem necessidade demonstrada. Essas opções devem ser reconsideradas apenas diante de requisitos que necessitem de suas propriedades.
