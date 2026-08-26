@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 class CsvRecordLengthLimitingReaderTest {
 
   @Test
-  void shouldTreatCrLfAsOneRecordSeparator() {
-    assertThatCode(() -> consume("a,b\r\nc,d\r\n", 4))
+  void shouldTreatCrLfAsOneRecordSeparatorWithoutChargingItToTheRecord() {
+    assertThatCode(() -> consume("a,b\r\nc,d\r\n", 3))
         .doesNotThrowAnyException();
   }
 
@@ -25,7 +25,7 @@ class CsvRecordLengthLimitingReaderTest {
 
   @Test
   void shouldKeepEscapedQuoteInsideQuotedField() {
-    assertThatCode(() -> consume("a,b\n\"a\"\"b\",z\n", 10))
+    assertThatCode(() -> consume("a,b\n\"a\"\"b\",z\n", 8))
         .doesNotThrowAnyException();
   }
 
