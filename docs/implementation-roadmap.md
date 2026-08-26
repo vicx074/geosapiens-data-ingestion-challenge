@@ -2,167 +2,89 @@
 
 ## Objetivo
 
-Este documento adapta a sequência de commits definida no planejamento inicial ao estado real do repositório.
+Este documento registra a sequência real de construção do desafio. Ele não é uma meta artificial de quantidade de commits: cada marco existe porque fechou uma responsabilidade observável, um hardening justificado ou uma evidência necessária.
 
-A sequência é uma orientação de implementação, não uma meta artificial de quantidade de commits. Cada marco deve possuir uma intenção clara, manter os testes relevantes verdes e registrar a justificativa técnica quando houver decisão durável.
+O histórico Git continua sendo a fonte de verdade sobre os commits efetivamente mergeados.
 
-O histórico Git continua sendo a fonte de verdade sobre o que efetivamente foi implementado. Este roadmap existe para deixar explícito o que já foi concluído e qual é a próxima ordem de trabalho.
+## Marcos concluídos
 
-## Sequência original e estado atual
+### Fundação e backend
 
-O planejamento inicial previa, em ordem: contrato e arquitetura, fundação do backend, ciclo de vida do job, upload streaming, publicação confiável, Worker streaming, batch persistence, status, paginação, analytics/índices, integração real, frontend, benchmark, Docker Compose e documentação final.
+- [x] requisitos, System Design e critérios de validação;
+- [x] Java 21 + Spring Boot;
+- [x] ciclo de vida durável dos jobs;
+- [x] armazenamento temporário e upload em streaming;
+- [x] Transactional Outbox e publicação confiável;
+- [x] Worker RabbitMQ com prefetch/concorrência limitados;
+- [x] parser CSV progressivo;
+- [x] persistência JDBC em batches;
+- [x] idempotência diante de redelivery;
+- [x] status e erros;
+- [x] paginação por cursor de erros e transações;
+- [x] analytics no PostgreSQL;
+- [x] teste E2E com PostgreSQL e RabbitMQ reais;
+- [x] limite de redelivery após falha definitiva;
+- [x] limite de tamanho por registro CSV;
+- [x] observabilidade mínima.
 
-A implementação real preservou essa direção, mas alguns marcos foram divididos quando surgiram responsabilidades independentes ou hardenings justificados por testes e revisão.
+Os hardenings de redelivery, limite por registro e observabilidade não foram adicionados para aumentar escopo. Eles surgiram de revisão técnica de riscos concretos do caminho de ingestão.
 
-### Concluído
+### Frontend
 
-- [x] `docs: define requisitos, arquitetura e critérios de validação`
-- [x] `build: inicia backend com Java 21 e Spring Boot`
-- [x] `feat: modela ciclo de vida dos jobs de ingestão`
-- [x] `feat: recebe e armazena uploads em streaming`
-- [x] `feat: publica jobs de ingestão de forma confiável`
-- [x] `feat: processa CSV em streaming com concorrência limitada`
-- [x] `feat: persiste transações e erros em lotes`
-- [x] `feat: expõe status consistente da importação`
-- [x] paginação por cursor de erros e transações
-- [x] `feat: adiciona agregações e índices orientados às consultas`
-- [x] `test: valida processamento assíncrono ponta a ponta`
-- [x] `fix: limita redelivery após falha definitiva`
-- [x] `fix: reforça limites de memória e observabilidade do backend`
-- [x] `docs: define arquitetura e critérios do frontend React`
+- [x] arquitetura React + TypeScript + Vite e critérios de UI/UX;
+- [x] fundação feature-first, Router, SWR, testes e CI;
+- [x] upload multipart e polling do job;
+- [x] dashboard de analytics;
+- [x] paginação server-side e TanStack Virtual;
+- [x] estados de loading/erro/vazio/conteúdo parcial, teclado, foco e reduced motion cobertos nos fluxos relevantes.
 
-Os dois commits de hardening do backend não existiam no planejamento inicial. Eles foram adicionados porque a revisão encontrou problemas concretos: possibilidade de requeue sem limite em uma borda de falha, limite de memória por registro CSV e lacunas de observabilidade já prometidas na arquitetura.
+A implementação mantém estado remoto no SWR e estado visual local ao React. Redux/Zustand, Axios, TanStack Query/Table e outras dependências não entraram sem problema concreto para resolver.
 
-A documentação de arquitetura do frontend também foi antecipada antes do primeiro `.tsx` para evitar que decisões de estado, renderização e UI/UX surgissem de forma incidental durante a implementação.
+### Empacotamento
 
-## Próximos marcos
+- [x] imagens de backend e frontend;
+- [x] API e Worker como funções da mesma aplicação Spring Boot;
+- [x] PostgreSQL e RabbitMQ;
+- [x] volume temporário compartilhado;
+- [x] Nginx como frontend/proxy `/api` com buffering do upload desabilitado;
+- [x] `docker compose up` como caminho principal;
+- [x] smoke do Compose no CI atravessando upload → fila → Worker → PostgreSQL → consultas.
 
-### 1. `feat: estrutura frontend React e base visual`
+### Performance e evidências
 
-Criar a aplicação React + TypeScript + Vite e a fundação definida no ADR 0019:
+- [x] gerador determinístico de 1M+;
+- [x] harness reproduzível de benchmark;
+- [x] referência real com 1.000.000 de linhas e limites explícitos;
+- [x] coleta de throughput, memória observada e latências;
+- [x] `EXPLAIN (ANALYZE, BUFFERS)` de paginação e analytics;
+- [x] revalidação pós-`VACUUM (ANALYZE)`;
+- [x] remoção do covering index de analytics quando a medição não demonstrou benefício;
+- [x] `package-lock.json` versionado e `npm ci` usado no CI/build;
+- [x] documentação final de resultados e limitações.
 
-- estrutura `app/pages/features/shared`;
-- React Router;
-- SWR e cliente HTTP baseado em `fetch`;
-- tokens e estilos globais mínimos;
-- shell/layout responsivo;
-- configuração de Vitest, Testing Library e mocks HTTP;
-- job de frontend no CI com testes e build de produção.
+A referência medida está em `docs/performance.md`. O benchmark pesado não permanece no CI normal; somente o harness e seus helpers são testados continuamente.
 
-Este marco não deve antecipar dashboard ou tabela de alta volumetria. A intenção é provar que a fundação arquitetural, visual e de testes está saudável.
+## Estado da entrega
 
-### 2. `feat: implementa upload e acompanhamento no React`
+Não há feature obrigatória do enunciado marcada como pendente neste roadmap.
 
-Entregar o primeiro fluxo funcional completo:
+Antes do envio, a validação operacional final é:
 
-- seleção/dropzone acessível de CSV;
-- envio do `File` como um único multipart para `POST /imports`;
-- sem `FileReader`, Base64, JSON de milhões de linhas ou chunking no browser;
-- navegação para `/imports/:id` após `202 Accepted`;
-- polling do status com SWR;
-- interrupção do polling quando `terminal=true`;
-- estados `RECEIVED`, `QUEUED`, `PROCESSING`, `COMPLETED`, `COMPLETED_WITH_ERRORS` e `FAILED`;
-- loading, erro de conexão, retry explícito de leitura e conteúdo parcial;
-- testes de comportamento do fluxo.
+1. CI normal verde no SHA candidato;
+2. smoke do Docker Compose verde;
+3. revisão de consistência entre README, `ARCHITECTURE.md`, `docs/requirements.md`, ADRs e código;
+4. merge do PR final;
+5. confirmação do `main` após o merge.
 
-Não haverá retry automático cego do `POST /imports` enquanto o contrato não possuir idempotency key.
+Itens como Kafka, Redis, Kubernetes, WebSocket, cache de analytics, pré-agregação, upload em chunks e múltiplos Workers para um mesmo arquivo permanecem fora do escopo porque o desafio não exige suas propriedades e a evidência atual não justifica adicioná-los.
 
-### 3. `feat: adiciona dashboard de analytics`
+## Regra usada durante a implementação
 
-Implementar a leitura de `GET /imports/{id}/analytics`:
-
-- hierarquia dos indicadores;
-- total e agregações por categoria/mês;
-- gráficos simples a partir dos dados agregados pelo PostgreSQL;
-- estados de loading, erro, vazio e snapshot parcial durante processamento;
-- acessibilidade textual dos gráficos;
-- carregamento da biblioteca gráfica sem prejudicar o fluxo inicial quando houver benefício real.
-
-A biblioteca de gráficos deve ser escolhida neste marco, com base no caso concreto, e não antecipadamente apenas por convenção.
-
-### 4. `feat: adiciona listagens paginadas e virtualizadas`
-
-Implementar transações e erros com foco explícito em alta volumetria:
-
-- keyset pagination usando os cursores do backend;
-- histórico mínimo para navegação anterior/próxima;
-- páginas limitadas no estado do cliente;
-- TanStack Virtual para limitar as linhas montadas no DOM;
-- sem infinite scroll acumulando páginas sem limite;
-- estados de loading, erro e vazio;
-- responsividade adequada para dados tabulares;
-- testes que comprovem que o DOM permanece limitado.
-
-### 5. `test: valida qualidade e responsividade do frontend`
-
-Fechar a camada React sem transformar qualidade em correção tardia. Os marcos anteriores já devem nascer acessíveis e responsivos; este commit consolida a evidência final:
-
-- larguras de 360, 390, 768, 1024, 1280 e 1440 px;
-- navegação por teclado e foco visível;
-- `prefers-reduced-motion`;
-- estados de falha, vazio e conteúdo parcial;
-- ausência de ações falsas, dados fictícios e componentes sem comportamento;
-- revisão visual de hierarquia, densidade e consistência;
-- build de produção e suíte de frontend verdes.
-
-Depois deste marco, o frontend deve ser considerado congelado salvo correção encontrada por integração ou benchmark.
-
-### 6. `build: completa execução plug-and-play com Docker Compose`
-
-Integrar os componentes previstos no System Design:
-
-- frontend;
-- Spring Boot API;
-- Spring Boot Worker;
-- PostgreSQL;
-- RabbitMQ;
-- volume temporário compartilhado;
-- healthchecks e dependências de inicialização;
-- variáveis documentadas;
-- execução em ambiente limpo com `docker compose up`.
-
-O Compose vem antes do benchmark final porque será a referência reproduzível da entrega e permitirá medir os serviços sob limites explícitos de recursos.
-
-### 7. `perf: valida ingestão com 1M+ e planos de execução`
-
-Executar o benchmark em ambiente controlado usando o dataset determinístico:
-
-- versão do código;
-- hardware e sistema operacional;
-- limites de CPU/memória dos containers;
-- semente, quantidade de linhas e tamanho do arquivo;
-- batch size, prefetch e concorrência;
-- tempo total e vazão;
-- pico de memória;
-- latência das consultas críticas;
-- `EXPLAIN (ANALYZE, BUFFERS)` das queries principais;
-- comparação do custo/benefício dos índices, especialmente o índice de analytics.
-
-Configurações só serão defendidas como adequadas depois dessa evidência.
-
-### 8. `docs: registra resultados, limites e instruções finais`
-
-Fechar a entrega para o avaliador:
-
-- `docker compose up` como caminho principal;
-- URLs e fluxo de uso;
-- geração do dataset 1M+;
-- resultados do benchmark;
-- estratégia de memória, batch e índices;
-- decisões principais e limitações conhecidas;
-- smoke test do fluxo upload -> processamento -> dashboard -> listagens;
-- revisão final de consistência entre README, ARCHITECTURE, requisitos e ADRs.
-
-## Regra para os próximos commits
-
-Um marco pode ser dividido se aparecer uma responsabilidade independente que mereça teste e revisão próprios. Dois marcos também podem ser combinados se a separação produzir apenas commits artificiais.
-
-O critério continua sendo:
-
-- uma intenção clara por commit;
+- uma intenção clara por marco;
 - build válido;
-- testes relevantes verdes;
-- documentação atualizada quando o comportamento ou trade-off mudar;
-- comentários em PT-BR somente para decisões, invariantes e restrições não óbvias;
-- nenhuma tecnologia adicionada sem um problema concreto que a justifique;
-- nenhuma alteração que contradiga o System Design sem atualizar primeiro a decisão arquitetural correspondente.
+- testes relevantes verdes antes do merge;
+- documentação atualizada quando comportamento ou trade-off muda;
+- comentários em PT-BR apenas para decisões, invariantes e restrições não óbvias;
+- nenhuma tecnologia adicionada sem problema concreto que a justifique;
+- nenhuma alteração de topologia sem revisar antes o System Design;
+- nenhum número de performance apresentado sem contexto e limite da medição.
