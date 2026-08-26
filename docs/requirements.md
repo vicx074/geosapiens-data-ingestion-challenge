@@ -11,9 +11,9 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker RabbitMQ com concorrência e prefetch limitados | Testes de contrato, parser, listener e integração |
 | R06 | Obrigatório | Batch insert | JDBC batch configurável; transações, erros e progresso confirmados na mesma transação por lote | Testes de integração, rollback e benchmark |
 | R07 | Obrigatório | Status e erros | `GET /imports/{id}` expõe estado e contadores duráveis; `GET /imports/{id}/errors` expõe rejeições em páginas limitadas | Testes de caso de uso, contrato HTTP, persistência e continuidade entre páginas |
-| R08 | Obrigatório | Paginação eficiente | Keyset pagination implementada nos erros; paginação por cursor das transações ainda pendente | Teste de continuidade sem duplicação e futuro plano de execução das transações |
+| R08 | Obrigatório | Paginação eficiente | Keyset pagination em erros por `source_row` e transações por `id`, sem offsets profundos | Testes de continuidade, isolamento entre imports e contrato HTTP |
 | R09 | Obrigatório | Agregação otimizada | SQL no PostgreSQL | Resultado, latência e plano de execução |
-| R10 | Obrigatório | Índices adequados | Erros reutilizam `(import_id, source_row)`; demais índices serão derivados das consultas reais | Migrações existentes e futuro `EXPLAIN ANALYZE` em dados representativos |
+| R10 | Obrigatório | Índices adequados | Erros reutilizam `(import_id, source_row)`; transações usam `(import_id, id)`; agregações ainda serão orientadas pelas consultas reais | Migração, definição dos índices e futuro `EXPLAIN ANALYZE` em dados representativos |
 | R11 | Obrigatório | Interface responsiva | Paginação server-side e lista virtualizada | Teste de interface e inspeção do DOM |
 | R12 | Obrigatório | Execução plug-and-play | Docker Compose e variáveis documentadas | Execução limpa de `docker compose up` |
 | D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho com ACK manual, redelivery limitado e DLQ | Testes de ACK, redelivery e DLQ |
