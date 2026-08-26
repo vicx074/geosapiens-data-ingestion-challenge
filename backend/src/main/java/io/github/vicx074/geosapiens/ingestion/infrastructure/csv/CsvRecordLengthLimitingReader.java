@@ -52,6 +52,12 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
   }
 
   private void inspect(char current) throws CsvRecordTooLargeException {
+    // Em CRLF, o '\r' já encerrou o registro; o '\n' é apenas a segunda metade do separador.
+    if (!inQuotedField && current == '\n' && previousSeparatorWasCarriageReturn) {
+      previousSeparatorWasCarriageReturn = false;
+      return;
+    }
+
     recordCharacters = Math.addExact(recordCharacters, 1);
     if (recordCharacters > maxRecordCharacters) {
       throw new CsvRecordTooLargeException(recordNumber, maxRecordCharacters);
@@ -86,10 +92,6 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
 
   private void inspectUnquoted(char current) {
     if (current == '\n') {
-      if (previousSeparatorWasCarriageReturn) {
-        previousSeparatorWasCarriageReturn = false;
-        return;
-      }
       finishRecord();
       return;
     }
