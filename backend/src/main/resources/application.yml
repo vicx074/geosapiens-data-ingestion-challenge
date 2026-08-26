@@ -26,6 +26,17 @@ spring:
       pool:
         size: 1
 
+logging:
+  structured:
+    format:
+      console: ${CONSOLE_LOG_STRUCTURED_FORMAT:logstash}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
 app:
   storage:
     temporary-directory: ${TEMPORARY_STORAGE_DIRECTORY}
