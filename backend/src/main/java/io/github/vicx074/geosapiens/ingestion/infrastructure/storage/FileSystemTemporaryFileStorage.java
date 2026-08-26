@@ -59,6 +59,12 @@ public final class FileSystemTemporaryFileStorage implements TemporaryFileStorag
   }
 
   @Override
+  public void delete(UUID jobId) throws IOException {
+    Objects.requireNonNull(jobId, "O identificador do job é obrigatório.");
+    delete(storageKey(jobId));
+  }
+
+  @Override
   public void delete(String storageKey) throws IOException {
     if (storageKey == null || storageKey.isBlank()) {
       throw new IllegalArgumentException("A chave de armazenamento é obrigatória.");

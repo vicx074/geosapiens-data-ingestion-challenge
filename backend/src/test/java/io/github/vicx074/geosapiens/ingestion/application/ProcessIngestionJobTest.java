@@ -1,6 +1,7 @@
 package io.github.vicx074.geosapiens.ingestion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.vicx074.geosapiens.ingestion.application.port.out.IngestionJobRepository;
 import io.github.vicx074.geosapiens.ingestion.application.port.out.StoredTemporaryFile;
@@ -8,6 +9,7 @@ import io.github.vicx074.geosapiens.ingestion.application.port.out.TemporaryFile
 import io.github.vicx074.geosapiens.ingestion.domain.IngestionJob;
 import io.github.vicx074.geosapiens.ingestion.domain.IngestionStatus;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
@@ -23,7 +25,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest
+@SpringBootTest(properties = "app.worker.batch-size=2")
 class ProcessIngestionJobTest {
 
   private static final UUID JOB_ID = UUID.fromString("0a57bc5a-481e-4de4-a58b-cc409a57f198");
@@ -50,8 +52,10 @@ class ProcessIngestionJobTest {
 
   @BeforeEach
   void cleanDatabaseAndStorage() throws Exception {
-    jdbcClient.sql("TRUNCATE TABLE ingestion_outbox, ingestion_jobs").update();
-    storage.delete(JOB_ID + ".csv");
+    jdbcClient.sql(
+        "TRUNCATE TABLE ingestion_errors, transactions, ingestion_outbox, ingestion_jobs")
+        .update();
+    storage.delete(JOB_ID);
     storedKey = null;
   }
 
@@ -63,7 +67,7 @@ class ProcessIngestionJobTest {
   }
 
   @Test
-  void shouldProcessCsvAndPersistTerminalCounters() throws Exception {
+  void shouldPersistTransactionsErrorsProgressAndCleanupFile() throws Exception {
     queueJob();
     storedKey = store("""
         transaction_id,occurred_at,amount,category
@@ -77,14 +81,22 @@ class ProcessIngestionJobTest {
     assertThat(processed.getStatus()).isEqualTo(IngestionStatus.COMPLETED_WITH_ERRORS);
     assertThat(processed.getAcceptedRows()).isEqualTo(2);
     assertThat(processed.getRejectedRows()).isEqualTo(1);
-    assertThat(jobs.findById(JOB_ID)).get().satisfies(versioned -> {
-      assertThat(versioned.job().getStatus()).isEqualTo(IngestionStatus.COMPLETED_WITH_ERRORS);
-      assertThat(versioned.job().getProcessedRows()).isEqualTo(3);
-    });
+    assertThat(count("transactions")).isEqualTo(2);
+    assertThat(count("ingestion_errors")).isEqualTo(1);
+    assertThat(jdbcClient.sql("""
+            SELECT error_code
+            FROM ingestion_errors
+            WHERE import_id = :jobId
+              AND source_row = 4
+            """)
+        .param("jobId", JOB_ID)
+        .query(String.class)
+        .single()).isEqualTo("TRANSACTION_ID_REQUIRED");
+    assertThatThrownBy(() -> storage.open(JOB_ID)).isInstanceOf(IOException.class);
   }
 
   @Test
-  void shouldFailJobWhenHeaderDoesNotMatchContract() throws Exception {
+  void shouldFailJobAndCleanupWhenHeaderDoesNotMatchContract() throws Exception {
     queueJob();
     storedKey = store("id,occurred_at,amount,category\n");
 
@@ -93,10 +105,11 @@ class ProcessIngestionJobTest {
     assertThat(processed.getStatus()).isEqualTo(IngestionStatus.FAILED);
     assertThat(processed.getFailureReason()).hasValueSatisfying(
         reason -> assertThat(reason).contains("Cabeçalho CSV inválido"));
+    assertThatThrownBy(() -> storage.open(JOB_ID)).isInstanceOf(IOException.class);
   }
 
   @Test
-  void shouldTreatTerminalRedeliveryAsIdempotentNoOp() throws Exception {
+  void shouldTreatTerminalRedeliveryAsIdempotentNoOpAfterCleanup() throws Exception {
     queueJob();
     storedKey = store("""
         transaction_id,occurred_at,amount,category
@@ -108,6 +121,7 @@ class ProcessIngestionJobTest {
 
     assertThat(redelivered.getStatus()).isEqualTo(IngestionStatus.COMPLETED);
     assertThat(redelivered.getAcceptedRows()).isEqualTo(1);
+    assertThat(count("transactions")).isEqualTo(1);
   }
 
   private void queueJob() {
@@ -121,5 +135,11 @@ class ProcessIngestionJobTest {
         JOB_ID,
         new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)));
     return stored.storageKey();
+  }
+
+  private long count(String table) {
+    return jdbcClient.sql("SELECT COUNT(*) FROM " + table)
+        .query(Long.class)
+        .single();
   }
 }

@@ -17,5 +17,10 @@ public interface TemporaryFileStorage {
    */
   InputStream open(UUID jobId) throws IOException;
 
+  /**
+   * Remove o arquivo associado ao job depois que o processamento alcança estado terminal durável.
+   */
+  void delete(UUID jobId) throws IOException;
+
   void delete(String storageKey) throws IOException;
 }

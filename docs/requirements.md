@@ -7,10 +7,10 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R01 | Obrigatório | Backend Java com Spring Boot | Aplicação Spring Boot containerizada | Build e teste de inicialização |
 | R02 | Obrigatório | Frontend React | Aplicação React containerizada | Build e teste de interface |
 | R03 | Obrigatório | CSV com mais de 1 milhão de linhas | Gerador determinístico versionado | Contagem e checksum dos parâmetros |
-| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco e cópia com buffer fixo; Worker com parser CSV progressivo | Testes de storage/parser e benchmark |
+| R04 | Obrigatório | Não carregar o arquivo inteiro em RAM | Upload com multipart em disco; Worker com parser progressivo e buffer de lote limitado | Testes de storage/parser/batch e benchmark |
 | R05 | Obrigatório | Processamento assíncrono | `202 Accepted` após arquivo, job e Outbox duráveis; Worker RabbitMQ com concorrência e prefetch limitados | Testes de contrato, parser, listener e integração |
-| R06 | Obrigatório | Batch insert | JDBC batch com tamanho configurável | Teste de integração e benchmark |
-| R07 | Obrigatório | Status e erros | Job já mantém contadores; endpoint e persistência dos erros por linha ainda pendentes | Testes de estados e contrato |
+| R06 | Obrigatório | Batch insert | JDBC batch configurável; transações, erros e progresso confirmados na mesma transação por lote | Testes de integração, rollback e benchmark |
+| R07 | Obrigatório | Status e erros | Job e erros por linha já são persistidos; endpoint de status ainda pendente | Testes de estados, persistência e futuro contrato HTTP |
 | R08 | Obrigatório | Paginação eficiente | Paginação por cursor | Plano de execução e teste de continuidade |
 | R09 | Obrigatório | Agregação otimizada | SQL no PostgreSQL | Resultado, latência e plano de execução |
 | R10 | Obrigatório | Índices adequados | Índices derivados das consultas reais | Migração e `EXPLAIN ANALYZE` |
@@ -18,8 +18,8 @@ Este documento separa requisitos do enunciado, decisões da solução e evidênc
 | R12 | Obrigatório | Execução plug-and-play | Docker Compose e variáveis documentadas | Execução limpa de `docker compose up` |
 | D01 | Diferencial | Mensageria | RabbitMQ como fila de trabalho com ACK manual, redelivery limitado e DLQ | Testes de ACK, redelivery e DLQ |
 | S01 | Decisão | Atualização de status | Polling | Teste da interrupção em estado terminal |
-| S02 | Decisão | Evitar duplicação | Chave única por importação e linha | Teste de reprocessamento |
-| S03 | Decisão | Armazenamento intermediário | Volume Docker temporário | Teste entre API e Worker |
+| S02 | Decisão | Evitar duplicação | `UNIQUE (import_id, source_row)` e inserts idempotentes por lote | Teste de reprocessamento sem duplicação de dados ou progresso |
+| S03 | Decisão | Armazenamento intermediário | Volume Docker temporário removido depois do estado terminal | Teste entre API e Worker e teste de cleanup |
 
 ## Benchmark obrigatório do projeto
 
