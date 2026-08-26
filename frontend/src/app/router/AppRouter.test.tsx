@@ -61,6 +61,9 @@ describe('AppRoutes', () => {
           byMonth: [],
         }),
       ),
+      http.get(`http://localhost/api/imports/${jobId}/transactions`, () =>
+        HttpResponse.json({ items: [], nextCursor: null }),
+      ),
     )
 
     renderRoute(`/imports/${jobId}`)
@@ -68,6 +71,7 @@ describe('AppRoutes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'transactions.csv' })).toBeVisible()
     expect(screen.getByText(`Job ${jobId}`)).toBeVisible()
     expect(await screen.findByText(/aguardando dados confirmados/i)).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 2, name: /inspeção paginada/i })).toBeVisible()
   })
 
   it('oferece recuperação quando a rota não existe', () => {

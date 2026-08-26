@@ -50,6 +50,31 @@ export type IngestionAnalyticsResponse = {
   byMonth: MonthAggregateResponse[]
 }
 
+export type IngestionTransactionItemResponse = {
+  id: number
+  sourceRow: number
+  transactionId: string
+  occurredAt: string
+  amount: number
+  category: string
+}
+
+export type IngestionTransactionPageResponse = {
+  items: IngestionTransactionItemResponse[]
+  nextCursor: number | null
+}
+
+export type IngestionErrorItemResponse = {
+  sourceRow: number
+  code: string
+  reason: string
+}
+
+export type IngestionErrorPageResponse = {
+  items: IngestionErrorItemResponse[]
+  nextCursor: number | null
+}
+
 export type StatusPresentation = {
   label: string
   description: string
