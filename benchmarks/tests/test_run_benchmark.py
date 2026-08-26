@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "run_benchmark.py"
 SPEC = importlib.util.spec_from_file_location("run_benchmark", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 benchmark = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = benchmark
 SPEC.loader.exec_module(benchmark)
 
 
