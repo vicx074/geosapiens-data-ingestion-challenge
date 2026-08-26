@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -21,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
+import org.apache.commons.csv.CSVException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -70,12 +72,12 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
       }
     } catch (CsvRecordTooLargeException exception) {
       throw invalidOversizedRecord(exception);
+    } catch (CSVException exception) {
+      throw invalidCsvSyntax(exception);
+    } catch (CharacterCodingException exception) {
+      throw invalidUtf8(exception);
     } catch (UncheckedIOException exception) {
-      IOException cause = exception.getCause();
-      if (cause instanceof CsvRecordTooLargeException tooLarge) {
-        throw invalidOversizedRecord(tooLarge);
-      }
-      throw cause;
+      throw classifyReadFailure(exception.getCause());
     }
 
     return new CsvProcessingSummary(acceptedRows, rejectedRows);
@@ -89,9 +91,34 @@ public final class CommonsCsvIngestionProcessor implements IngestionCsvProcessor
     return new CsvRecordLengthLimitingReader(decoded, maxRecordCharacters);
   }
 
+  private static IOException classifyReadFailure(IOException cause) {
+    if (cause instanceof CsvRecordTooLargeException tooLarge) {
+      return invalidOversizedRecord(tooLarge);
+    }
+    if (cause instanceof CSVException csvException) {
+      return invalidCsvSyntax(csvException);
+    }
+    if (cause instanceof CharacterCodingException codingException) {
+      return invalidUtf8(codingException);
+    }
+    return cause;
+  }
+
   private static InvalidCsvFileException invalidOversizedRecord(
       CsvRecordTooLargeException exception) {
     return new InvalidCsvFileException(exception.getMessage(), exception);
+  }
+
+  private static InvalidCsvFileException invalidCsvSyntax(CSVException exception) {
+    return new InvalidCsvFileException(
+        "Conteúdo CSV sintaticamente inválido.",
+        exception);
+  }
+
+  private static InvalidCsvFileException invalidUtf8(CharacterCodingException exception) {
+    return new InvalidCsvFileException(
+        "O arquivo CSV deve possuir codificação UTF-8 válida.",
+        exception);
   }
 
   private static void validateHeader(List<String> actualHeader) {
