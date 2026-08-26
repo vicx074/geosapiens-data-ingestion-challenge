@@ -52,9 +52,16 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
   }
 
   private void inspect(char current) throws CsvRecordTooLargeException {
-    // Em CRLF, o '\r' já encerrou o registro; o '\n' é apenas a segunda metade do separador.
-    if (!inQuotedField && current == '\n' && previousSeparatorWasCarriageReturn) {
+    if (previousSeparatorWasCarriageReturn) {
       previousSeparatorWasCarriageReturn = false;
+      if (current == '\n') {
+        // O '\r' anterior já encerrou o registro; este '\n' apenas completa o CRLF.
+        return;
+      }
+    }
+
+    if (isRecordSeparator(current)) {
+      finishRecord(current == '\r');
       return;
     }
 
@@ -69,6 +76,26 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
     }
 
     inspectUnquoted(current);
+  }
+
+  private boolean isRecordSeparator(char current) {
+    if (current != '\n' && current != '\r') {
+      return false;
+    }
+
+    if (!inQuotedField) {
+      return true;
+    }
+
+    // Uma quebra logo depois da aspa de fechamento está fora do campo quoted. Quando a aspa é
+    // escapada, o próximo caractere é outra aspa e este ramo não é alcançado.
+    if (pendingQuote) {
+      inQuotedField = false;
+      pendingQuote = false;
+      return true;
+    }
+
+    return false;
   }
 
   private void inspectQuoted(char current) {
@@ -91,19 +118,6 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
   }
 
   private void inspectUnquoted(char current) {
-    if (current == '\n') {
-      finishRecord();
-      return;
-    }
-
-    if (current == '\r') {
-      finishRecord();
-      previousSeparatorWasCarriageReturn = true;
-      return;
-    }
-
-    previousSeparatorWasCarriageReturn = false;
-
     if (current == DELIMITER) {
       atFieldStart = true;
       return;
@@ -118,9 +132,12 @@ final class CsvRecordLengthLimitingReader extends FilterReader {
     atFieldStart = false;
   }
 
-  private void finishRecord() {
+  private void finishRecord(boolean carriageReturn) {
     recordCharacters = 0;
     recordNumber = Math.addExact(recordNumber, 1);
+    inQuotedField = false;
+    pendingQuote = false;
     atFieldStart = true;
+    previousSeparatorWasCarriageReturn = carriageReturn;
   }
 }
