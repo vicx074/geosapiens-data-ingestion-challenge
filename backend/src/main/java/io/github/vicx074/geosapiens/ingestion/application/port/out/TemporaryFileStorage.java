@@ -12,5 +12,10 @@ public interface TemporaryFileStorage {
    */
   StoredTemporaryFile store(UUID jobId, InputStream content) throws IOException;
 
+  /**
+   * Abre o arquivo durável de um job para leitura progressiva. O chamador deve encerrar o stream.
+   */
+  InputStream open(UUID jobId) throws IOException;
+
   void delete(String storageKey) throws IOException;
 }

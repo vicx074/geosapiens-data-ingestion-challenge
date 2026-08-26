@@ -20,6 +20,13 @@ app:
     ingestion-exchange: ingestion.jobs
     ingestion-queue: ingestion.jobs.process
     ingestion-routing-key: ingestion.process
+    ingestion-dead-letter-exchange: ingestion.jobs.dlx
+    ingestion-dead-letter-queue: ingestion.jobs.dead
+    ingestion-dead-letter-routing-key: ingestion.dead
+  worker:
+    enabled: false
+    concurrency: 2
+    prefetch: 1
   outbox:
     enabled: false
     poll-interval: 1s

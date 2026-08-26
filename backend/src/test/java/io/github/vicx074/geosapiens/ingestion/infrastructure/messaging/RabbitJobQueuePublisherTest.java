@@ -57,7 +57,12 @@ class RabbitJobQueuePublisherTest {
 
   private RabbitJobQueuePublisher publisher() {
     IngestionMessagingProperties messaging = new IngestionMessagingProperties(
-        "ingestion.jobs", "ingestion.jobs.process", "ingestion.process");
+        "ingestion.jobs",
+        "ingestion.jobs.process",
+        "ingestion.process",
+        "ingestion.jobs.dlx",
+        "ingestion.jobs.dead",
+        "ingestion.dead");
     OutboxPublisherProperties outbox = new OutboxPublisherProperties(
         true,
         Duration.ofSeconds(1),
