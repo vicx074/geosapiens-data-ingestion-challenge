@@ -108,7 +108,7 @@ Os erros usam keyset pagination por `source_row`: `import_id = ? AND source_row 
 
 As transações usam keyset pagination por `id`: `import_id = ? AND id > ? ORDER BY id`. O índice `(import_id, id)` é criado junto ao endpoint porque essa consulta agora existe e a chave primária `id` isolada não organiza os registros primeiro por importação. `source_row` permanece disponível para rastreabilidade, mas não é o contrato de navegação da coleção persistida.
 
-Índices de agregação só serão definidos depois que as consultas finais existirem. Cada índice deverá ser justificado pela consulta e validado com `EXPLAIN (ANALYZE, BUFFERS)` em dados representativos.
+O dashboard usa `GROUPING SETS` em uma única instrução para obter total, categoria e mês no mesmo snapshot. O mês é derivado explicitamente em UTC. O índice de cobertura `(import_id) INCLUDE (category, occurred_at, amount)` existe porque a consulta filtra por importação e precisa dessas três colunas; seu custo/benefício será validado no benchmark com `EXPLAIN (ANALYZE, BUFFERS)` antes de ser defendido como configuração ótima.
 
 ## Frontend
 
@@ -117,6 +117,8 @@ Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem cone
 O status não carrega detalhes de todos os erros. `GET /imports/{id}/errors` usa paginação por cursor para que cada resposta permaneça limitada, inclusive quando o CSV produz muitas rejeições.
 
 `GET /imports/{id}/transactions` também usa paginação por cursor. Paginação server-side limita transferência e trabalho do banco; a virtualização do React limitará separadamente os elementos montados no DOM. As duas técnicas resolvem problemas diferentes e serão usadas em conjunto na lista principal.
+
+`GET /imports/{id}/analytics` entrega os totais do dashboard sem transportar registros individuais para a aplicação. Durante o processamento, a resposta representa um snapshot consistente dos lotes já commitados; o estado terminal continua pertencendo ao endpoint de status.
 
 ## Observabilidade mínima
 

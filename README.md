@@ -82,6 +82,18 @@ A consulta usa `WHERE import_id = ? AND id > ? ORDER BY id`, sustentada pelo ín
 
 Enquanto o Worker ainda processa o arquivo, a lista representa apenas transações já commitadas. `nextCursor = null` não substitui o estado do job; o cliente deve consultar `GET /imports/{id}` para saber se a importação terminou.
 
+### Analytics da importação
+
+O dashboard obtém total, categoria e mês diretamente do PostgreSQL:
+
+```http
+GET /imports/{id}/analytics
+```
+
+A resposta contém `transactionCount`, `totalAmount`, `byCategory` e `byMonth`. O mês é representado como `YYYY-MM` e calculado explicitamente em UTC.
+
+As três visões são produzidas na mesma instrução SQL com `GROUPING SETS`, evitando somar milhões de registros em Java e mantendo os resultados no mesmo snapshot. O índice `idx_transactions_analytics_by_import` filtra por `import_id` e inclui `category`, `occurred_at` e `amount` para permitir acesso coberto quando o planner considerar vantajoso. O custo/benefício será confirmado no benchmark com `EXPLAIN (ANALYZE, BUFFERS)`; a decisão completa está no ADR 0014.
+
 A execução integral por Docker Compose será adicionada junto aos serviços previstos no system design. Até esse marco, a existência do Maven Wrapper não transforma Java instalado em requisito da entrega final.
 
 ## Dataset
