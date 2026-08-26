@@ -104,15 +104,17 @@ Um commit único para todo o arquivo reteria uma transação extensa. Um commit 
 
 A consulta de status usa a chave primária de `ingestion_jobs` e retorna apenas estado e contadores persistidos. O payload de polling tem tamanho constante; erros detalhados não são embutidos nele.
 
-A listagem usará cursor estável em vez de offsets profundos. O índice inicial correspondente será `(import_id, id)`, pois a consulta lista registros de uma importação ordenados pelo identificador.
+Os erros usam keyset pagination por `source_row`: `import_id = ? AND source_row > ? ORDER BY source_row`. A constraint única `(import_id, source_row)`, criada originalmente para idempotência, já fornece um índice compatível com essa consulta; não será criado um índice redundante apenas para a listagem de erros.
 
-A restrição `(import_id, source_row)` atende à idempotência. Índices de agregação só serão definidos depois que o schema e as consultas finais existirem. Cada índice deverá ser justificado pela consulta e validado com `EXPLAIN (ANALYZE, BUFFERS)` em dados representativos.
+A listagem de transações usará cursor estável em vez de offsets profundos. O índice inicial correspondente será `(import_id, id)`, pois a consulta planejada lista registros de uma importação ordenados pelo identificador. Esse índice será criado junto ao endpoint de transações, quando a consulta existir no código.
+
+Índices de agregação só serão definidos depois que as consultas finais existirem. Cada índice deverá ser justificado pela consulta e validado com `EXPLAIN (ANALYZE, BUFFERS)` em dados representativos.
 
 ## Frontend
 
 Polling atende ao acompanhamento unidirecional permitido pelo enunciado sem conexões persistentes. `GET /imports/{id}` lê o estado durável do job e não mantém progresso paralelo em memória. A resposta inclui `processedRows`, `acceptedRows` e `rejectedRows`; percentual só será exibido se o total de linhas puder ser obtido de forma durável sem uma passagem adicional injustificada pelo arquivo.
 
-O status não carrega detalhes de todos os erros. Erros serão consultados por endpoint paginado próprio para que o polling permaneça limitado em tamanho.
+O status não carrega detalhes de todos os erros. `GET /imports/{id}/errors` usa paginação por cursor para que cada resposta permaneça limitada, inclusive quando o CSV produz muitas rejeições.
 
 Paginação server-side limita transferência e trabalho do banco. Virtualização limita os elementos montados no DOM. As duas técnicas resolvem problemas diferentes e podem ser usadas juntas.
 
