@@ -5,10 +5,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.rabbitmq.client.Channel;
 import io.github.vicx074.geosapiens.ingestion.application.FailIngestionJob;
 import io.github.vicx074.geosapiens.ingestion.application.ProcessIngestionJob;
+import io.github.vicx074.geosapiens.ingestion.domain.IngestionJob;
+import io.github.vicx074.geosapiens.ingestion.domain.IngestionStatus;
+import io.github.vicx074.geosapiens.ingestion.infrastructure.observability.IngestionWorkerMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -22,11 +27,22 @@ class RabbitIngestionJobListenerTest {
   private final ProcessIngestionJob processJob = mock(ProcessIngestionJob.class);
   private final FailIngestionJob failJob = mock(FailIngestionJob.class);
   private final Channel channel = mock(Channel.class);
-  private final RabbitIngestionJobListener listener =
-      new RabbitIngestionJobListener(processJob, failJob);
+  private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+  private final RabbitIngestionJobListener listener = new RabbitIngestionJobListener(
+      processJob,
+      failJob,
+      new IngestionWorkerMetrics(registry));
 
   @Test
   void shouldAckOnlyAfterSuccessfulProcessing() throws Exception {
+    IngestionJob job = mock(IngestionJob.class);
+    when(job.getId()).thenReturn(JOB_ID);
+    when(job.getStatus()).thenReturn(IngestionStatus.COMPLETED);
+    when(job.getProcessedRows()).thenReturn(3L);
+    when(job.getAcceptedRows()).thenReturn(3L);
+    when(job.getRejectedRows()).thenReturn(0L);
+    when(processJob.execute(JOB_ID)).thenReturn(job);
+
     listener.consume(JOB_ID.toString(), message(false), channel);
 
     verify(processJob).execute(JOB_ID);
