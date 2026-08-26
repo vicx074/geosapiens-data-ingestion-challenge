@@ -16,6 +16,8 @@ spring:
 app:
   storage:
     temporary-directory: ${java.io.tmpdir}/geosapiens-test-uploads
+  csv:
+    max-record-characters: 4096
   messaging:
     ingestion-exchange: ingestion.jobs
     ingestion-queue: ingestion.jobs.process
