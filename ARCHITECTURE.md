@@ -45,7 +45,7 @@ Não haverá uma interface para cada classe. Uma abstração só será criada qu
 5. Cada lote confirma registros válidos, rejeições e progresso em uma única transação.
 6. Depois do estado terminal confirmado, o Worker confirma a mensagem e remove o arquivo.
 
-A memória deve variar com buffers, tamanho máximo da linha e tamanho do lote, não com o total de registros.
+A memória deve variar com buffers, tamanho máximo do registro e tamanho do lote, não com o total de registros. Além do streaming do arquivo, `app.csv.max-record-characters` limita cada registro lógico antes que o Commons CSV materialize seus campos; o valor inicial é `4096` caracteres e permanece configurável. Quebras de linha dentro de campos quoted continuam pertencendo ao mesmo registro, portanto não contornam a barreira. O trade-off está no ADR 0017.
 
 ## Assincronia e backpressure
 
@@ -124,15 +124,16 @@ O status não carrega detalhes de todos os erros. `GET /imports/{id}/errors` usa
 
 ## Observabilidade mínima
 
-Serão registrados:
+A observabilidade permanece no adapter de infraestrutura e não altera domínio, casos de uso ou estado persistido.
 
-- identificador do job em logs estruturados;
-- duração e resultado dos jobs;
-- contadores processados, aceitos e rejeitados;
-- erros sem conteúdo financeiro sensível;
-- métricas básicas de HTTP, JVM e processamento.
+- o console usa logging estruturado Logstash nativo do Spring Boot;
+- conclusões do Worker registram `jobId`, status, duração e contadores processados/aceitos/rejeitados;
+- redelivery, DLQ e necessidade de reconciliação usam campos estáveis, sem conteúdo financeiro do CSV;
+- Micrometer registra `ingestion.worker.deliveries` e `ingestion.worker.delivery.duration` com a tag de baixa cardinalidade `outcome=ack|redelivery|dead_letter`;
+- `jobId`, nome de arquivo e motivos de falha não são tags de métrica para evitar cardinalidade não limitada;
+- Actuator fornece métricas automáticas de JVM, processo, HTTP e RabbitMQ e expõe `health`, `info` e `metrics` para inspeção local.
 
-Observabilidade não substituirá o estado persistido do job nem será usada para ocultar erros.
+Telemetria é *best effort*: falhar ao registrar uma métrica não pode modificar ACK, retry, DLQ ou estado do job. PostgreSQL continua sendo a fonte de verdade. A decisão completa está no ADR 0018.
 
 ## Fora do escopo
 
