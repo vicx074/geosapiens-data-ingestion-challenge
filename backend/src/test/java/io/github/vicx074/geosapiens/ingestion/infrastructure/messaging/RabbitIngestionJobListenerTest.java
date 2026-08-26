@@ -2,6 +2,7 @@ package io.github.vicx074.geosapiens.ingestion.infrastructure.messaging;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -51,6 +52,19 @@ class RabbitIngestionJobListenerTest {
 
     verify(failJob).execute(JOB_ID, "falha repetida");
     verify(channel).basicReject(DELIVERY_TAG, false);
+  }
+
+  @Test
+  void shouldDeadLetterWhenFailureStateCannotBePersistedAfterRedelivery() throws Exception {
+    doThrow(new IllegalStateException("falha repetida")).when(processJob).execute(JOB_ID);
+    doThrow(new IllegalStateException("PostgreSQL indisponível"))
+        .when(failJob).execute(JOB_ID, "falha repetida");
+
+    listener.consume(JOB_ID.toString(), message(true), channel);
+
+    verify(failJob).execute(JOB_ID, "falha repetida");
+    verify(channel).basicReject(DELIVERY_TAG, false);
+    verify(channel, never()).basicNack(DELIVERY_TAG, false, true);
   }
 
   @Test
