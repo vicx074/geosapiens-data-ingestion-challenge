@@ -22,7 +22,7 @@ O orçamento do Worker permanece em no máximo duas entregas para uma falha de p
 
 No último caso, o estado do job pode permanecer não terminal até reconciliação operacional. Esse é um trade-off explícito: preservar a mensagem na DLQ e interromper um possível redelivery loop é preferível a atacar indefinidamente uma dependência indisponível apenas para tentar registrar o estado terminal.
 
-O log desse caminho deve informar que a mensagem foi preservada na DLQ e que o job pode exigir reconciliação. A DLQ mantém a referência necessária para inspeção e eventual replay depois que a infraestrutura voltar a ficar saudável.
+O log desse caminho deve informar que a mensagem foi preservada na DLQ e que o job pode exigir reconciliação. A DLQ mantém a referência necessária para inspeção e eventual replay depois que a infraestrutura voltar a ficar saudável. Estar na DLQ não significa processamento bem-sucedido nem substitui a persistência de um estado terminal do job.
 
 ## Por que não persistir um contador adicional de retry
 
