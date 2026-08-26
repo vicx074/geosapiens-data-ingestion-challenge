@@ -6,7 +6,7 @@ Este diretório contém o harness usado para validar a propriedade central do de
 
 `run_benchmark.py` executa a solução real via Docker Compose e registra:
 
-- SHA exato do código;
+- SHA exato do código medido;
 - SO, arquitetura, CPUs lógicas e memória visível no host;
 - versões do Docker, Docker Compose e Python;
 - limites de CPU e memória efetivamente aplicados aos containers;
@@ -16,12 +16,12 @@ Este diretório contém o harness usado para validar a propriedade central do de
 - duração durável do Worker e vazão em linhas/s;
 - pico de memória observado em API, Worker, PostgreSQL e RabbitMQ por `docker stats`;
 - latências de status, primeira página, cursor profundo e analytics;
-- tamanho dos índices relevantes;
+- tamanho dos índices persistidos relevantes;
 - `EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS)` das consultas de paginação e analytics.
 
-A comparação sem os índices dedicados usa `DROP INDEX` dentro de uma transação e termina com `ROLLBACK`. A estrutura persistente do banco não é alterada pela comparação.
+Para a paginação, o harness remove temporariamente `idx_transactions_import_cursor` dentro de uma transação e executa `ROLLBACK` após o plano. Para analytics, a solução final não mantém um covering index: o harness recria o candidato rejeitado apenas dentro da transação de medição e o remove automaticamente pelo `ROLLBACK`. Assim é possível reavaliar a hipótese sem cobrar seu custo no runtime normal.
 
-`validate_plans.py` executa uma segunda coleta dos quatro planos após `VACUUM (ANALYZE) transactions`. Essa manutenção fica **fora do tempo de ingestão** e serve para atualizar estatísticas e o visibility map antes de avaliar o covering index de analytics.
+`validate_plans.py` executa uma segunda coleta após `VACUUM (ANALYZE) transactions`. Essa manutenção fica **fora do tempo de ingestão** e atualiza estatísticas/visibility map antes de comparar novamente os planos.
 
 ## Dataset
 
@@ -84,7 +84,8 @@ Cada execução cria um diretório em `benchmarks/results/<timestamp>-<sha>/` co
 
 - `report.json` — contexto e medições estruturadas;
 - `summary.md` — resumo legível;
-- planos atuais e sem os índices dedicados;
+- plano atual da paginação e variante sem o índice de cursor;
+- plano atual de analytics e variante com o covering index candidato;
 - planos equivalentes após `VACUUM (ANALYZE)`.
 
 `benchmarks/results/` permanece no `.gitignore` para não versionar resultados locais como se fossem universais. O relatório final do projeto só deve publicar números acompanhados do ambiente em que foram medidos.
