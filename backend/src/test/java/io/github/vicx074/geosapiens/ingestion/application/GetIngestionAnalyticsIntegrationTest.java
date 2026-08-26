@@ -90,26 +90,24 @@ class GetIngestionAnalyticsIntegrationTest {
   }
 
   @Test
-  void shouldRejectMissingImportAndCreateCoveringAnalyticsIndex() {
+  void shouldRejectMissingImport() {
     assertThatThrownBy(() -> getAnalytics.execute(JOB_ID))
         .isInstanceOf(IngestionJobNotFoundException.class);
+  }
 
-    String definition = jdbcClient.sql("""
-            SELECT indexdef
+  @Test
+  void shouldNotKeepCoveringAnalyticsIndexAfterMigrations() {
+    Integer indexCount = jdbcClient.sql("""
+            SELECT COUNT(*)
             FROM pg_indexes
             WHERE schemaname = 'public'
               AND tablename = 'transactions'
               AND indexname = 'idx_transactions_analytics_by_import'
             """)
-        .query(String.class)
+        .query(Integer.class)
         .single();
 
-    assertThat(definition)
-        .contains("(import_id)")
-        .contains("INCLUDE")
-        .contains("category")
-        .contains("occurred_at")
-        .contains("amount");
+    assertThat(indexCount).isZero();
   }
 
   private void insertJob(UUID jobId) {
