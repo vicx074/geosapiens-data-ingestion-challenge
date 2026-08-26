@@ -1,3 +1,5 @@
+import { UploadPanel } from '../../features/imports/components/UploadPanel'
+
 const flowSteps = [
   {
     number: '01',
@@ -19,19 +21,27 @@ const flowSteps = [
 export function UploadPage() {
   return (
     <div className="page page--upload">
-      <section className="intro" aria-labelledby="upload-page-title">
-        <p className="eyebrow">Ingestão em larga escala</p>
-        <h1 id="upload-page-title">Dados grandes, fluxo simples.</h1>
-        <p className="intro__description">
-          Uma interface operacional para enviar datasets CSV, acompanhar o processamento e analisar o
-          resultado sem transformar volume em ruído para o usuário.
-        </p>
-      </section>
+      <div className="upload-layout">
+        <section className="intro" aria-labelledby="upload-page-title">
+          <p className="eyebrow">Ingestão em larga escala</p>
+          <h1 id="upload-page-title">Dados grandes, fluxo simples.</h1>
+          <p className="intro__description">
+            Envie um CSV grande sem carregar suas linhas no React. Depois do aceite, acompanhe apenas o
+            estado durável que o backend confirma.
+          </p>
+          <div className="intro__note">
+            <span aria-hidden="true">↳</span>
+            <p>Upload, fila e processamento têm responsabilidades separadas para manter a interface responsiva.</p>
+          </div>
+        </section>
+
+        <UploadPanel />
+      </div>
 
       <section className="flow" aria-labelledby="flow-title">
         <div className="section-heading">
-          <p className="section-heading__label">Fluxo planejado</p>
-          <h2 id="flow-title">Do arquivo à análise, com responsabilidades claras.</h2>
+          <p className="section-heading__label">Como o fluxo trabalha</p>
+          <h2 id="flow-title">Do arquivo à análise, sem mover o processamento pesado para o browser.</h2>
         </div>
 
         <div className="flow-grid">
