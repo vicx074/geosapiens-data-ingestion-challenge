@@ -10,12 +10,12 @@ export function AppShell() {
               GS
             </span>
             <span className="brand__copy">
-              <strong>Data Ingestion</strong>
-              <span>GeoSapiens challenge</span>
+              <strong>GeoSapiens</strong>
+              <span>Data ingestion</span>
             </span>
           </Link>
 
-          <span className="app-header__context">Operações de dados</span>
+          <span className="app-header__context">Ambiente local</span>
         </div>
       </header>
 

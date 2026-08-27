@@ -29,8 +29,8 @@ describe('AppRoutes', () => {
   it('renderiza a entrada principal com hierarquia semântica', () => {
     renderRoute('/')
 
-    expect(screen.getByRole('heading', { level: 1, name: /dados grandes, fluxo simples/i })).toBeVisible()
-    expect(screen.getByRole('heading', { level: 2, name: /do arquivo à análise/i })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 1, name: /um arquivo\. milhões de registros/i })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 2, name: /do upload ao resultado/i })).toBeVisible()
   })
 
   it('preserva o identificador da importação na rota e reconstrói o estado remoto', async () => {

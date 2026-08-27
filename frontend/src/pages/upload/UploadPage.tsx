@@ -3,18 +3,18 @@ import { UploadPanel } from '../../features/imports/components/UploadPanel'
 const flowSteps = [
   {
     number: '01',
-    title: 'Envio eficiente',
-    description: 'O navegador entrega o arquivo; o processamento pesado permanece no backend.',
+    title: 'Recebido',
+    description: 'O arquivo é armazenado sem ser carregado por inteiro na aplicação.',
   },
   {
     number: '02',
-    title: 'Processamento assíncrono',
-    description: 'O job segue em segundo plano, com estado durável e acompanhamento pela interface.',
+    title: 'Processado',
+    description: 'O Worker lê o CSV em stream e confirma os registros em batches.',
   },
   {
     number: '03',
-    title: 'Consulta em escala',
-    description: 'Analytics e listagens usam respostas limitadas, sem transportar milhões de linhas.',
+    title: 'Disponível',
+    description: 'Status, registros e agregações ficam acessíveis pela mesma interface.',
   },
 ]
 
@@ -23,15 +23,14 @@ export function UploadPage() {
     <div className="page page--upload">
       <div className="upload-layout">
         <section className="intro" aria-labelledby="upload-page-title">
-          <p className="eyebrow">Ingestão em larga escala</p>
-          <h1 id="upload-page-title">Dados grandes, fluxo simples.</h1>
+          <p className="eyebrow">Processamento assíncrono</p>
+          <h1 id="upload-page-title">Um arquivo. Milhões de registros.</h1>
           <p className="intro__description">
-            Envie um CSV grande sem carregar suas linhas no React. Depois do aceite, acompanhe apenas o
-            estado durável que o backend confirma.
+            Envie o CSV e acompanhe o processamento sem manter uma requisição aberta.
           </p>
           <div className="intro__note">
-            <span aria-hidden="true">↳</span>
-            <p>Upload, fila e processamento têm responsabilidades separadas para manter a interface responsiva.</p>
+            <span aria-hidden="true">→</span>
+            <p>Leitura em stream · persistência em batches · consultas paginadas</p>
           </div>
         </section>
 
@@ -40,8 +39,8 @@ export function UploadPage() {
 
       <section className="flow" aria-labelledby="flow-title">
         <div className="section-heading">
-          <p className="section-heading__label">Como o fluxo trabalha</p>
-          <h2 id="flow-title">Do arquivo à análise, sem mover o processamento pesado para o browser.</h2>
+          <p className="section-heading__label">Fluxo</p>
+          <h2 id="flow-title">Do upload ao resultado.</h2>
         </div>
 
         <div className="flow-grid">

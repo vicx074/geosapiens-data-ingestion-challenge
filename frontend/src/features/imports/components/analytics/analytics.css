@@ -192,7 +192,7 @@
 
 .category-chart__track,
 .month-chart__track {
-  height: 7px;
+  height: 8px;
   margin-top: 10px;
   overflow: hidden;
   border-radius: 999px;

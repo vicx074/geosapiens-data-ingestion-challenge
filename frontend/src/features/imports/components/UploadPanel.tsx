@@ -79,8 +79,8 @@ export function UploadPanel() {
     <section className="upload-panel" aria-labelledby="upload-panel-title">
       <div className="upload-panel__heading">
         <div>
-          <p className="section-heading__label">Novo dataset</p>
-          <h2 id="upload-panel-title">Importar arquivo CSV</h2>
+          <p className="section-heading__label">Nova importação</p>
+          <h2 id="upload-panel-title">Enviar CSV</h2>
         </div>
         <span className="upload-panel__format">.CSV</span>
       </div>
@@ -110,8 +110,8 @@ export function UploadPanel() {
         <div className="dropzone__icon" aria-hidden="true">
           ↑
         </div>
-        <p className="dropzone__title">Arraste o CSV para cá</p>
-        <p className="dropzone__hint">ou escolha o arquivo sem ler seu conteúdo no navegador</p>
+        <p className="dropzone__title">Solte o arquivo aqui</p>
+        <p className="dropzone__hint">CSV · até 1 GB</p>
         <label className="button button--secondary" htmlFor={inputId}>
           Selecionar arquivo CSV
         </label>
@@ -155,8 +155,7 @@ export function UploadPanel() {
 
       <div className="upload-panel__footer">
         <p>
-          O envio termina quando a API aceita o arquivo. O processamento das linhas continua em segundo
-          plano.
+          Após o aceite, o processamento continua em segundo plano.
         </p>
         <button
           className="button button--primary"
